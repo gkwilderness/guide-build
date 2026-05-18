@@ -19,7 +19,7 @@ Use this prompt with Claude Code on the Guide machine (logged in as `gareth`) to
 
 ## The Prompt
 
-You are the Engineer helping me set up a new Ubuntu server called "guide" — the foundation build for a Guide AI system. I'm logged in as `gareth` (admin user, already exists). Work methodically, verify each step before moving on, and show me the output of key commands. All scripts must be idempotent (safe to re-run).
+You are the Engineer helping me set up a new Ubuntu server called "guide-server" — the foundation build for a Guide AI system (the OpenClaw runtime on this box will be called "guide"; the box itself is "guide-server"). I'm logged in as `gareth` (admin user, already exists). Work methodically, verify each step before moving on, and show me the output of key commands. All scripts must be idempotent (safe to re-run).
 
 Do not proceed past any step without confirming the output with me first.
 
@@ -44,11 +44,11 @@ Full architecture spec is in `/srv/guide-build/` once we clone it (Step 7 below)
 ## Step 1 — Set hostname
 
 ```bash
-sudo hostnamectl set-hostname guide
+sudo hostnamectl set-hostname guide-server
 hostname
 ```
 
-Expected output: `guide`
+Expected output: `guide-server`
 
 ---
 
@@ -61,7 +61,7 @@ sudo apt install -y \
   build-essential unzip ca-certificates gnupg lsb-release \
   samba samba-common-bin \
   ripgrep ffmpeg \
-  libssl-dev zlib1g-dev libbz2-dev libreadline-dev \
+  libssl-dev zlib1g-dev libbz2-dev liblzma-dev libreadline-dev \
   libsqlite3-dev libffi-dev libyaml-dev libgmp-dev
 ```
 
