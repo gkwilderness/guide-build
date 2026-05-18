@@ -15,6 +15,12 @@ status: pending
 
 ---
 
+### ⚠️ Path-Stale on Z8 — Adapt Before Execution
+
+**Status (2026-05-18):** This chunk was written for the Mac Mini (`~/.openclaw/`, `~/guide-core/`). On Z8, all paths are `/srv/openclaw/` and `/srv/guide-core/`. The host crontab migration from Mac Mini to Z8 (with path rewrites) is handled inside `CHUNK-07c-ubuntu-migration.md` Task E5. The remaining CHUNK-08 work (cron health checks, prompt files convention, schedule design) is still relevant — adapt the paths before executing on Z8.
+
+---
+
 ### Pre-Chunk Work (applied outside chunk — do not repeat)
 
 The following were applied in ad-hoc sessions before CHUNK-08 was executed. The Engineer must check these exist and skip them rather than overwriting:

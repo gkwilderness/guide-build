@@ -532,4 +532,55 @@ Even with exec denied at the OpenClaw level, a future vulnerability or prompt in
 
 ---
 
-*Updated: 2026-04-29*
+## ADR-023: Docker on Z8 — Reverse ADR-021 for Linux Host
+
+**Date:** 2026-05-18
+**Status:** Accepted — reverses ADR-021 for the Z8 / Ubuntu deployment. ADR-021 remains valid for the macOS / Mac Mini era it described.
+
+**Decision:** Run OpenClaw as a Docker container on the Z8 (Ubuntu 24.04), under a systemd unit, with `/srv/` paths passthrough-mounted into the container.
+
+**Why Docker is the right choice on Linux (where it wasn't on macOS):**
+- Linux Docker has no VM layer — `network_mode: host` binds the gateway directly on host loopback, no port-mapping shim, no DNS or fetch idiosyncrasies. The Node.js HTTP issue that motivated ADR-021 does not exist here.
+- The Z8 hosts seven services (OpenClaw, Huginn, Hermes, Paperclip, Ollama, Open WebUI, OneDrive client) — uniformly containerised makes restart, upgrade, and observability tractable. Mixing bare-metal Node alongside containerised Postgres/Redis/Ollama would be a maintenance trap.
+- Pinned image versions give reproducible deploys. `guide/openclaw:<version>` is the version of record.
+- Filesystem layout matches host: `/srv/openclaw`, `/srv/guide-core`, `/srv/guide-engine`, `/srv/guide-vaults` are all bind-mounted passthrough into the container, so paths inside the container equal paths on the host. No `~/.openclaw/` indirection — openclaw.json carries `/srv/...` strings unchanged.
+
+**Service management:**
+- Start: `sudo systemctl start openclaw.service`
+- Stop: `sudo systemctl stop openclaw.service`
+- Restart: `sudo systemctl restart openclaw.service` (gracefully recreates the container)
+- Reload (after openclaw.yml edits): `sudo systemctl reload openclaw.service`
+- Logs: `sudo journalctl -u openclaw -f`, `docker logs openclaw`
+
+**What this does not change:**
+- ADR-022 (exec deny-by-default) — still in force; tools.deny in openclaw.json continues to be the structural privacy boundary between agents.
+- ADR-020 (privacy via separate bot tokens) — unchanged.
+- ADR-006 (cron prompt files) — paths rewrite to `/srv/guide-core/prompts/cron/`.
+
+**Review trigger:** If Docker introduces breaking changes that outweigh its packaging benefits (rare), or if Guide moves back to a macOS host, reconsider.
+
+---
+
+## ADR-024: Channel-Disabled Cutover for Mac Mini → Z8 Migration
+
+**Date:** 2026-05-18
+**Status:** Accepted
+
+**Problem:** Telegram bots can only have one active poller per token; Slack socket mode permits multiple connections but produces duplicate handling on the application side. Bringing the Z8 up with channels enabled while the Mac Mini is still serving would mean both hosts compete for every Telegram update and respond twice to every Slack event. Risk: visible duplicate messages to users, doubled API spend, and inconsistent state writes to the same workspace tree if any shared resource overlaps.
+
+**Decision:** During migration, the Z8 comes up with `channels.telegram.enabled` and `channels.slack.enabled` set to `false`. Agent registrations, workspaces, cron, and the gateway all start; only outbound/inbound chat connections are gated off. At cutover, the Mac Mini gateway is unloaded first, then channels on the Z8 are flipped to `true` and the service restarted.
+
+**Mechanism:**
+- `rewrite-openclaw-paths.py` flips both flags to `false` as part of the path-rewrite pass (Phase C6).
+- Per-account Telegram enables (e.g. `accounts.nick.enabled`) are left `true` since they are gated by the top-level flag — saves re-flipping each account at cutover.
+- Re-enable is a single `jq` operation at cutover time (Phase D), explicit and audit-loggable in the openclaw.json git history.
+
+**Why not regenerate the bot tokens for the Z8?** Slack/Telegram tokens are tied to bot identities the team already knows. Rotating tokens means rebinding every channel and re-issuing pairings. Channel-flag toggling achieves the same isolation with zero user-visible identity change.
+
+**Why not put Mac Mini behind a load balancer / queue?** Overkill for a one-way migration with no live external SLAs.
+
+**Review trigger:** If we ever do a zero-downtime migration with a SLA, this approach is insufficient — would need either token rotation (clean cut) or a message-queue tee (shared inbound).
+
+---
+
+*Updated: 2026-05-18*

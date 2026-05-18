@@ -1,0 +1,39 @@
+# /etc/systemd/system/openclaw.service
+# Guide — OpenClaw service unit (Z8, Ubuntu).
+# Wraps `docker compose -f /srv/compose/openclaw.yml up -d` / `down`.
+#
+# Install:
+#   sudo cp /srv/guide-build/BUILD/DEV-CHUNKS/templates/openclaw/openclaw.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now openclaw.service
+
+[Unit]
+Description=Guide OpenClaw runtime (Docker)
+Documentation=file:///srv/guide-build/INFRA.md
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/srv/compose
+TimeoutStartSec=300
+TimeoutStopSec=120
+
+# Build (no-op if image already exists & Dockerfile unchanged) + start detached.
+ExecStartPre=/usr/bin/docker compose -f /srv/compose/openclaw.yml build
+ExecStart=/usr/bin/docker compose -f /srv/compose/openclaw.yml up -d
+
+# Reload command: re-runs `up -d` which docker compose treats as a noop if config unchanged,
+# or a graceful recreate if openclaw.yml changed.
+ExecReload=/usr/bin/docker compose -f /srv/compose/openclaw.yml up -d
+
+ExecStop=/usr/bin/docker compose -f /srv/compose/openclaw.yml down
+
+# Restart this systemd unit if `docker compose up -d` fails to return successfully.
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

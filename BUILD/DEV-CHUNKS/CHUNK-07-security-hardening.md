@@ -15,14 +15,13 @@ status: pending
 
 ---
 
-### ⚠️ Pre-Execution Note (added 2026-05-15)
+### ⚠️ SUPERSEDED — Do Not Execute on Z8
 
-This spec was written for macOS. The Guide machine has since migrated to Ubuntu (HP Z8 G4). Before executing:
+**Status (2026-05-18):** This chunk is **superseded by `CHUNK-07c-ubuntu-migration.md`** for the Z8 / Ubuntu deployment. The hardening tasks below were written for the Mac Mini (macOS). The Ubuntu-equivalent hardening (UFW, fail2ban, SSH key-only, workspace perms 440, `tools.deny: exec` per ADR-022, audit logging) is delivered inside CHUNK-07c §"Phase E — Hardening, cron, and soak".
 
-1. **Do not delete or overwrite this file.** Preserve the macOS version — rename it to `CHUNK-07-security-hardening-macos.md` and keep it in `BUILD/DEV-CHUNKS/`.
-2. Write a new `CHUNK-07-security-hardening-ubuntu.md` for the Ubuntu/Docker target environment.
-3. Use `~/guide-build/Notes/2026-05-15 Z8 Security Best Practice.md` as the reference for what the Ubuntu version should cover.
-4. The Ubuntu chunk must account for the full target stack: OpenClaw + Hermes Agent + Ollama + Open WebUI + Claude Code isolation.
+Preserve this file for historical reference — it documents the macOS-era hardening design and the threat model it addressed.
+
+If a future macOS deployment is reconsidered, this spec is still the source of truth for that target. For the current Z8 target, **do not execute these tasks**.
 
 ---
 

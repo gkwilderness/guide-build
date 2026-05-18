@@ -1,0 +1,64 @@
+# /srv/compose/openclaw.yml
+# Guide — OpenClaw service (Z8, Ubuntu, Docker).
+# Replaces the Mac Mini launchd + npm install (CHUNK-07b, superseded by CHUNK-07c).
+#
+# Run via systemd: `systemctl start openclaw.service`
+# The systemd unit invokes `docker compose -f /srv/compose/openclaw.yml up -d`.
+
+services:
+  openclaw:
+    container_name: openclaw
+    image: guide/openclaw:${OPENCLAW_VERSION:-2026.5.4}
+    build:
+      context: /srv/compose/openclaw
+      dockerfile: Dockerfile
+      args:
+        OPENCLAW_VERSION: ${OPENCLAW_VERSION:-2026.5.4}
+    restart: unless-stopped
+
+    # network_mode: host — simplest model for a single-tenant Linux host.
+    # Gateway binds to 127.0.0.1:18789 directly on the host loopback; no port mapping needed.
+    # Outbound calls to Slack socket mode, Telegram, Anthropic use the host's egress.
+    network_mode: host
+
+    # Run as gareth:guide-data so files written by the container match host ownership.
+    # Adjust if `id gareth` reports different UID/GID — engineer verifies during migration.
+    user: "${HOST_UID:-1000}:${HOST_GID_GUIDE_DATA:-1001}"
+
+    working_dir: /srv/openclaw
+
+    # Paths inside the container = paths on the host. No /home/ indirection.
+    # This is deliberate: openclaw.json carries /srv/ paths and Docker mounts pass them through unchanged.
+    volumes:
+      - /srv/openclaw:/srv/openclaw
+      - /srv/guide-core:/srv/guide-core
+      - /srv/guide-engine:/srv/guide-engine
+      - /srv/guide-build:/srv/guide-build:ro
+      - /srv/guide-vaults:/srv/guide-vaults
+      - /srv/guide-data:/srv/guide-data
+      - /srv/guide-outputs:/srv/guide-outputs
+
+    environment:
+      OPENCLAW_CONFIG: /srv/openclaw/config/openclaw.json
+      HOME: /srv/openclaw
+      NODE_ENV: production
+      TZ: Europe/London
+
+    # Anthropic API key:
+    # OpenClaw normally reads from /srv/openclaw/config/credentials/anthropic (file-based).
+    # If the credentials store isn't picked up after migration, uncomment env_file:
+    # env_file:
+    #   - /srv/openclaw/config/openclaw.env   # mode 600, contains ANTHROPIC_API_KEY=sk-ant-...
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:18789/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"

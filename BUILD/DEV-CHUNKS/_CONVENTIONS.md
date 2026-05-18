@@ -10,7 +10,22 @@ status: active
 # READ-ONLY: Referenced by all CHUNK files. Never duplicated. Never edited during a build session.
 # Source of truth for all constants, paths, ports, and naming rules.
 #
-# Guide conventions. Adapted for Guide machine (Mac Mini M2 Pro, macOS).
+# Guide conventions.
+#
+# ⚠️  TARGET HOST (2026-05-18): HP Z8 G4, Ubuntu 24.04, Docker + systemd, /srv/ canonical paths.
+#     Sections below that still describe macOS / Mac Mini / launchd / Homebrew / ~/ home-relative
+#     paths are HISTORICAL — they describe the interim Mac Mini deployment. For Z8 work, the
+#     authoritative sources of truth are:
+#       - INFRA.md §"OS Conventions"  (Ubuntu, systemd, apt, Docker Engine)
+#       - CHUNK-07c-ubuntu-migration.md  (canonical /srv/ paths and Docker layout)
+#       - DECISIONS.md ADR-023  (Docker on Z8 — reverses ADR-021 for the Linux host)
+#       - Specs/guide-filesystem-layout.md  (/srv/openclaw/ tree)
+#     Full rewrite of this file to /srv/ paths is scheduled post-CHUNK-07c. Until then,
+#     mentally substitute:  /Users/gareth/   → /home/gareth/   (user home)
+#                           ~/guide-core/    → /srv/guide-core/   (and same for guide-engine, guide-build)
+#                           ~/.openclaw/     → /srv/openclaw/
+#                           launchd plist    → systemd unit
+#                           Homebrew         → apt
 
 ---
 

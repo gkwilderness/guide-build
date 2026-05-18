@@ -116,15 +116,15 @@ Key sections: `persons` (identity, vaults, gates), `teamVaults` (source, gates),
 
 ## Build Status
 
-Guide is **live — Mac Mini running, Z8 foundation complete, migration pending.**
+Guide is **live — Mac Mini running, Z8 foundation complete, CHUNK-07c migration ready to execute.**
 
 - Guide machine: HP Z8 G4 (guide-server, Ubuntu 24.04) — foundation complete 2026-05-18
-- OpenClaw: still running on Mac Mini M2 Pro — migration to guide-server is next
-- Tailscale: guide-server live at 100.80.44.14. Mac Mini still on tailnet (100.72.42.1) until migration.
+- OpenClaw: still running on Mac Mini M2 Pro — CHUNK-07c migrates it to guide-server (Docker + systemd)
+- Tailscale: guide-server live at 100.80.44.14. Mac Mini still on tailnet (100.72.42.1) — stays online through CHUNK-07c soak as hot rollback
 - Telegram: @WildernessGuideBot + @WildernessGuideNickBot (Nick live). @GuideHadleyBot pending.
 - Slack: Socket mode, bi-directional — DMs + all channels live
 - WhatsApp: Deferred
-- Phase 0 remaining: CHUNK-07 hardening (Ubuntu), CHUNK-08 cron (Ubuntu)
+- Phase 0 remaining: **CHUNK-07c migration (current)**, CHUNK-07a Google integration, post-migration revisit of CHUNK-08
 - Phase 1 remaining: CHUNK-11 Paperclip, CHUNK-15 Keith instance, CHUNK-16 Hadley instance
 
 ## Working With This Project
