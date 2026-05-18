@@ -1,22 +1,23 @@
 ---
-title: "Huginn Z8 — Foundation Architecture"
+title: "Guide Z8 — Foundation Architecture"
 type: note
 area: infra
 project: Guide
-tags: [infra, z8, huginn, ubuntu, docker, filesystem, smb, backup, onedrive]
-status: draft — needs Architect decisions before build
+tags: [infra, z8, guide, ubuntu, docker, filesystem, smb, backup, onedrive]
+status: approved — ready for Engineer
 created: 2026-05-15
+updated: 2026-05-18
 ---
 
-# Huginn Z8 — Foundation Architecture
+# Guide Z8 — Foundation Architecture
 
-Pre-build system design for the HP Z8 G4 (Huginn). This document must be completed and signed off by Gareth before any Engineer build work begins. Claude Code implements from this spec — gaps discovered mid-build are expensive.
+Pre-build system design for the HP Z8 G4 (Guide machine). This document is the Architect's signed-off spec — the Engineer (Claude Code on the Guide machine) implements from this directly. Do not start the build without reading it in full.
 
 ---
 
 ## Machine
 
-- Hostname: huginn
+- Hostname: guide
 - Hardware: HP Z8 G4, 2× Xeon Gold 6134, 128GB RAM, 1TB NVMe, 4TB HDD, RTX 3090 24GB VRAM
 - OS: Ubuntu (latest LTS)
 - Role: Guide runtime, data pipeline host, local LLM inference, web services, automation
@@ -28,7 +29,7 @@ Pre-build system design for the HP Z8 G4 (Huginn). This document must be complet
 | User | Type | Shell | Purpose | Notes |
 |------|------|-------|---------|-------|
 | `gareth` | Admin | bash | Daily management, SSH access, sudo (scoped) | Pre-exists on machine |
-| `guide` | Service | nologin | Runs OpenClaw, owns /home/guide/ runtime state | Pre-exists — shell must be corrected to nologin and account locked |
+| `guide` | Service | nologin | Runs OpenClaw, owns /srv/openclaw/ runtime state | Pre-exists — shell must be corrected to nologin and account locked |
 | `engineer` | Restricted | bash | Claude Code sessions — scoped to code repos only | Created during foundation build |
 
 **Note (confirmed 2026-05-18):** `guide` already exists on this machine. Do not attempt to recreate it — correct it:
@@ -41,7 +42,7 @@ sudo passwd -l guide
 
 | Group | Members | Purpose | Notes |
 |-------|---------|---------|-------|
-| `guide-data` | guide, gareth | Read/write to /srv/guide/ | Created during foundation build |
+| `guide-data` | guide, gareth | Read/write to /srv/guide-vaults/, /srv/openclaw/ | Created during foundation build |
 | `srv-data` | guide, gareth, engineer | Read/write to /srv/ service directories | Created during foundation build |
 | `docker` | gareth, guide | Run docker compose without sudo | Created by Docker installer — add gareth after Step 5, not before |
 | `smb-users` | gareth + any future SMB users | Samba access | Created during foundation build |
@@ -162,12 +163,12 @@ Redis: single instance, used by Huginn (required) and any other services that ne
 
 ## OneDrive
 
-- Client: abraunegg/onedrive (most maintained Linux client — confirm before locking in)
+- Client: abraunegg/onedrive
 - Mount: /srv/onedrive/
-- Runs as: systemd service under gareth or a dedicated onedrive user
+- Runs as: systemd service under gareth
 - Syncs: Wilderness Safaris shared drives → /srv/onedrive/
-- Symlink: /srv/guide/teams/digital/ → relevant OneDrive path for Obsidian vault access
-- Decision needed: sync (two-way) or download-only (safer for production server)
+- Sync mode: two-way
+- Symlink: /srv/guide-vaults/teams/digital/ → relevant OneDrive path — deferred, wire up after services are stable
 
 ---
 
@@ -181,7 +182,7 @@ Redis: single instance, used by Huginn (required) and any other services that ne
 - Schedule: systemd timer (not cron) — daily at 02:00
 - Destinations:
   - Local: secondary internal or USB drive (fast recovery)
-  - Offsite: Backblaze B2 (decision needed — B2 account required)
+  - Offsite: Backblaze B2 — deferred, set up after foundation is stable
 - Retention: 7 daily, 4 weekly, 12 monthly
 - Monitoring: backup failure → alert to Gareth via Telegram
 
@@ -200,17 +201,17 @@ gareth in docker group — no sudo needed for docker compose commands.
 
 Claude Code (Engineer) implements this from the spec. For this to go fast:
 
-1. Architect writes the complete foundation chunk from this note
-2. Chunk creates directory structure, users, groups, permissions, SMB config, Compose scaffolding — all idempotent
-3. Claude Code runs as `engineer` user or inside a Docker devcontainer scoped to /srv/ and code repos
-4. Engineer never touches /home/guide/ or .openclaw/ config directly
+1. Engineer reads this note and the bootstrap prompt in full before starting
+2. Bootstrap prompt creates directory structure, users, groups, permissions, Tailscale, SMB config, runtimes — all idempotent
+3. Claude Code runs as `engineer` system user (not devcontainer — revisit later)
+4. Engineer never touches /srv/openclaw/config/ directly — config is managed via guide-core
 5. Security hardening (CHUNK-07-ubuntu) runs after foundation is stable
-6. Services deploy on top in sequence
+6. Services deploy on top in sequence via Docker Compose
 
 **Claude Code scoping:**
-- Read/write: /srv/compose/, /srv/guide/vaults/, code repos (guide-core, guide-engine)
-- Read-only: /srv/guide/teams/, /srv/guide/outputs/
-- No access: /home/guide/.openclaw/, /srv/db/ (databases managed separately), /srv/backup/
+- Read/write: /srv/compose/, /srv/guide-vaults/, /srv/guide-core/, /srv/guide-engine/
+- Read-only: /srv/guide-build/ (Architect vault — pull only, never push from this machine)
+- No access: /srv/openclaw/config/, /srv/db/, /srv/backup/
 
 ---
 
@@ -231,19 +232,22 @@ The guide-build vault (specs, prompts, chunks, architecture docs) is an Obsidian
 
 ---
 
-## Open Questions — Architect Decisions Needed
+## Decisions Log
 
-Before this spec is handed to the Engineer, the following must be decided:
+All foundation decisions resolved 2026-05-18:
 
-1. **Analytics DB**: DuckDB or ClickHouse?
-2. **OneDrive client**: abraunegg/onedrive confirmed? Sync mode: two-way or download-only?
-3. **Backup offsite**: Backblaze B2 account — set up before or after foundation build?
-4. **SMB users**: Anyone other than Gareth getting SMB access at launch?
-5. **Engineer user vs container**: Is `engineer` a system user, or does Claude Code run inside a Docker devcontainer?
-6. **Landing pages**: Static (nginx) or dynamic (needs a runtime — Node, Python)?
-7. **Huginn**: Is this Huginn the automation software (requires Postgres + Redis), or just the machine name?
-8. **Paperclip**: What does Paperclip need from the filesystem? Does it have a database requirement?
-9. **Monitoring**: Grafana + Prometheus, or something lighter? Decide before build so monitoring is included in foundation.
+| Decision | Outcome |
+|----------|---------|
+| Machine hostname | `guide` |
+| Analytics DB | Deferred — DuckDB vs ClickHouse TBD after foundation stable |
+| OneDrive sync mode | Two-way (abraunegg/onedrive) |
+| SMB users at launch | Gareth only |
+| Engineer: user vs container | System user (`engineer`) for now — revisit for devcontainer later |
+| Monitoring | Deferred — htop only until services are stable |
+| Backblaze B2 offsite backup | Deferred — set up after foundation stable |
+| Huginn | Both: machine was previously called Huginn (now renamed Guide), and Huginn the automation software is a service running on it |
+| Paperclip requirements | PostgreSQL, Node 20+, git worktrees |
+| Landing pages | Deferred |
 
 ---
 
@@ -257,4 +261,4 @@ Before this spec is handed to the Engineer, the following must be decided:
 
 ## Status
 
-Draft. Architect to review, answer open questions, and produce foundation chunk before Engineer session begins.
+**Approved 2026-05-18.** All decisions resolved. Bootstrap prompt written. Ready for Engineer.
