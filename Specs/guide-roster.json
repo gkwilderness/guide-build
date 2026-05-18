@@ -1,0 +1,733 @@
+{
+  "_meta": {
+    "description": "Master roster for Guide personal instances, team vaults, and channel agents. Source of truth maintained by Gareth in the Obsidian vault. Copied to ~/guide-core/agent-factory/roster.json on the Guide machine.",
+    "updated": "2026-05-12",
+    "statusValues": {
+      "planned": "Designed but no build work started",
+      "building": "Actively being built — workspace, templates, or config in progress",
+      "testing": "Built and registered — Gareth testing before handoff to person",
+      "production": "Live and in use by the person",
+      "paused": "Was live, temporarily disabled"
+    },
+    "execPolicyValues": {
+      "denied": "No exec/bash access. Agent uses vault_read/vault_write only.",
+      "restricted": "Exec allowed for specific read-only commands in allowlisted paths. ask: always.",
+      "scoped": "Exec allowed for specific commands (e.g. python3 ETL scripts) in scoped paths. ask: always."
+    }
+  },
+
+  "securityDefaults": {
+    "_comment": "Default permissions applied to all agents unless overridden. ADR-022.",
+    "exec": "denied",
+    "ask": "always",
+    "toolsPermitted": ["vault_read", "web_search", "web_fetch"],
+    "toolsRestricted": ["vault_write"],
+    "toolsDenied": ["process", "code_execution", "group:automation"],
+    "vaultWriteScope": "workspace-only",
+    "filePermissions": {
+      "teamVaults": "444",
+      "otherAgentWorkspaces": "000",
+      "ownWorkspace": "644",
+      "credentials": "400"
+    }
+  },
+
+  "permissionProfiles": {
+    "personal": {
+      "_comment": "Personal instances — privacy is the priority. No exec. Read-write on personal vault, team vaults, and shared data.",
+      "exec": "denied",
+      "ask": "n/a",
+      "toolsPermitted": ["vault_read", "vault_write", "web_search", "web_fetch", "telegram_send"],
+      "toolsRestricted": [],
+      "toolsDenied": ["process", "code_execution", "group:automation", "exec", "slack_post"],
+      "vaultReadScope": "~/guide-vault/personal/{id}/, ~/guide-vault/teams/*, ~/guide-vault/shared/*, ~/guide-outputs/*",
+      "vaultWriteScope": "~/guide-vault/personal/{id}/, ~/guide-vault/teams/*, ~/guide-vault/shared/*",
+      "rationale": "Personal instances need read-write on all mounted vaults to create and update files on behalf of the user. No exec. guide-outputs/ is append-only (read for personal instances)."
+    },
+    "channel": {
+      "_comment": "Channel agents — read-write on team vault and shared data, post to Slack. No exec.",
+      "exec": "denied",
+      "ask": "n/a",
+      "toolsPermitted": ["vault_read", "vault_write", "web_search", "web_fetch", "slack_post"],
+      "toolsRestricted": [],
+      "toolsDenied": ["process", "code_execution", "group:automation", "exec"],
+      "vaultReadScope": "~/guide-vault/teams/{team}/, ~/guide-vault/shared/*",
+      "vaultWriteScope": "~/guide-vault/teams/{team}/, ~/guide-vault/shared/*",
+      "rationale": "Channel agents read shared context and respond in Slack. No need for exec."
+    },
+    "main": {
+      "_comment": "Guide Main — orchestrator. Restricted exec for system state checks. Read everything.",
+      "exec": "restricted",
+      "ask": "always",
+      "toolsPermitted": ["vault_read", "vault_write", "web_search", "web_fetch", "slack_post", "telegram_send"],
+      "toolsRestricted": ["exec"],
+      "toolsDenied": ["code_execution", "group:automation"],
+      "vaultReadScope": "All team vaults, all shared, all outputs",
+      "vaultWriteScope": "~/guide-vault/main/ + ~/guide-outputs/ + ~/.openclaw/workspace/signals/",
+      "execAllowlist": {
+        "commands": ["ls", "cat", "head", "tail", "wc", "git log", "git status", "git diff", "openclaw health"],
+        "paths": ["~/guide-vault/", "~/guide-teams/", "~/guide-shared/", "~/guide-outputs/", "~/.openclaw/workspace/signals/"],
+        "denied": ["rm", "mv", "cp", "chmod", "chown", "ssh", "curl", "wget", "python", "python3", "node", "npm", "pip", "brew"]
+      },
+      "rationale": "Orchestrator needs system visibility but not write/execute capability outside workspace."
+    },
+    "pipeline": {
+      "_comment": "Pipeline agent (future) — needs exec for ETL scripts. Scoped to guide-data/ paths.",
+      "exec": "scoped",
+      "ask": "always",
+      "toolsPermitted": ["vault_read", "vault_write", "web_fetch", "exec"],
+      "toolsRestricted": [],
+      "toolsDenied": ["code_execution", "group:automation"],
+      "vaultReadScope": "~/guide-shared/data/, ~/guide-teams/ (all)",
+      "vaultWriteScope": "~/guide-vault/shared/pipeline/ + ~/guide-shared/data/",
+      "execAllowlist": {
+        "commands": ["python3"],
+        "paths": ["~/guide-data/scripts/", "~/guide-shared/data/", "/tmp/guide-etl/"],
+        "denied": ["rm -rf", "ssh", "curl", "git push", "npm", "brew"]
+      },
+      "rationale": "Pipeline runs deterministic Python ETL scripts. Scoped to data paths only."
+    },
+    "shared": {
+      "_comment": "Shared agents (briefing, scribe, analyst, finance, capitalcore, apex) — no exec.",
+      "exec": "denied",
+      "ask": "n/a",
+      "toolsPermitted": ["vault_read", "web_search", "web_fetch", "slack_post"],
+      "toolsRestricted": ["vault_write"],
+      "toolsDenied": ["process", "code_execution", "group:automation", "exec"],
+      "vaultReadScope": "Varies per agent — defined in agent spec",
+      "vaultWriteScope": "~/guide-vault/shared/{id}/ + ~/guide-outputs/ (append only)",
+      "rationale": "Intelligence and reporting agents. Read data, produce outputs. No shell access."
+    }
+  },
+
+  "apiKeys": {
+    "exec": {
+      "description": "Claude Max Plus — Nick-approved, reserved for executive instances",
+      "provisioned": true,
+      "keyLocation": "~/guide-core/__CONFIG/keys/anthropic-exec",
+      "model": "anthropic/claude-sonnet-4-6",
+      "backgroundModel": "anthropic/claude-haiku-4-5",
+      "budgetOwner": "Nick Stone"
+    },
+    "domain": {
+      "description": "Wilderness digital budget — standard rate limits for domain users",
+      "provisioned": false,
+      "keyLocation": "~/guide-core/__CONFIG/keys/anthropic-domain",
+      "model": "anthropic/claude-sonnet-4-6",
+      "backgroundModel": "anthropic/claude-haiku-4-5",
+      "budgetOwner": "Wilderness digital budget"
+    },
+    "operational": {
+      "description": "Shared agents and channel agents — Haiku for background, Sonnet for interactive",
+      "provisioned": true,
+      "keyLocation": "~/guide-core/__CONFIG/keys/anthropic-operational",
+      "model": "anthropic/claude-sonnet-4-6",
+      "backgroundModel": "anthropic/claude-haiku-4-5",
+      "budgetOwner": "Gareth Knight"
+    }
+  },
+
+  "persons": {
+    "ashleigh": {
+      "name": "Ashleigh",
+      "fullName": "Ashleigh Waterson",
+      "role": "Head of Data and Marketing Analytics",
+      "tier": "domain",
+      "emoji": "📊",
+      "style": "Data-first, analytically precise. Owns the data and analytics pipeline. Direct and technically minded.",
+      "priorities": "Data pipeline integrity, marketing analytics, measurement frameworks, reporting infrastructure, data-driven decision support",
+      "teamVaults": ["digital"],
+      "sharedMounts": ["guide-vault/shared/"],
+      "bootContext": [],
+      "comms": "telegram",
+      "telegramBotRef": "default",
+      "telegramBotUsername": "WildernessGuideBot",
+      "telegramChatId": 7971802067,
+      "slackUserId": "U0B3TDMB4M6",
+      "model": "anthropic/claude-sonnet-4-6",
+      "apiKeyRef": "operational",
+      "reviewMode": "auto",
+      "reviewRules": {
+        "factual": "Answer directly from data vault and pipeline context.",
+        "judgment": "Answer with caveats. Flag to Gareth if commercial implications.",
+        "outOfScope": "Say I do not have that context and offer to flag Gareth."
+      },
+      "heartbeat": "None initially",
+      "permissionProfile": "personal",
+      "channelAgentBinding": "data",
+      "personSpecPath": "Agents/Personal/Ashleigh.md",
+      "status": "production",
+      "rolloutOrder": 4,
+      "gates": {
+        "personSpecWritten": false,
+        "apiKeyProvisioned": false,
+        "templateReady": false,
+        "telegramBotCreated": true,
+        "telegramChatIdCollected": true,
+        "workspaceGenerated": false,
+        "registeredInOpenClaw": true,
+        "garethTested": false,
+        "personOnboarded": false,
+        "soulTuned": false
+      },
+      "deployedDate": "2026-05-11",
+      "notes": "Bound to data channel agent via Telegram DM on main WildernessGuideBot. Domain tier — no personal bot. Data agent primary owner. Personal instance to follow once apiKeyRef resolved."
+    },
+    "nick": {
+      "name": "Nick",
+      "fullName": "Nick Stone",
+      "role": "PE Partner",
+      "tier": "exec",
+      "emoji": "📈",
+      "style": "Capital allocation framing. Plain language, no jargon. Wants proof points and ROI. Data-oriented — asks foundational questions first.",
+      "priorities": "Capital allocation efficiency, ROI on digital investment, budget pacing, financial rigor, responsible AI/tech investment",
+      "teamVaults": ["exec"],
+      "sharedMounts": ["guide-shared/data/finance", "guide-outputs/reports"],
+      "bootContext": ["PRIORITIES.md", "FY27-CEO-Commitments.md"],
+      "comms": "telegram",
+      "telegramBotRef": "telegram-nick",
+      "telegramBotUsername": "WildernessGuideNickBot",
+      "telegramChatId": 8516698636,
+      "model": "anthropic/claude-sonnet-4-6",
+      "apiKeyRef": "exec",
+      "reviewMode": "hybrid",
+      "reviewRules": {
+        "factual": "Answer directly. Data is in the reports.",
+        "judgment": "Draft a response and escalate to Gareth via Telegram DM for approval before sending.",
+        "outOfScope": "Say I do not have that context and offer to flag Gareth."
+      },
+      "heartbeat": "Weekly Friday 16:00 — capital allocation summary, key metrics, flags",
+      "permissionProfile": "personal",
+      "personSpecPath": "Agents/Personal/Nick.md",
+      "status": "production",
+      "rolloutOrder": 1,
+      "gates": {
+        "personSpecWritten": true,
+        "apiKeyProvisioned": true,
+        "templateReady": true,
+        "telegramBotCreated": true,
+        "telegramChatIdCollected": true,
+        "workspaceGenerated": true,
+        "registeredInOpenClaw": true,
+        "garethTested": true,
+        "personOnboarded": true,
+        "soulTuned": false
+      },
+      "deployedDate": "2026-05-01",
+      "notes": "Live on @WildernessGuideNickBot. Onboarding completed. Soul tuning outstanding — agent gave generic capability overview on first session; BOOT.md patched to trigger ONBOARDING.md correctly."
+    },
+    "hadley": {
+      "name": "Hadley",
+      "fullName": "Hadley Allen",
+      "role": "Chief Commercial Officer",
+      "tier": "exec",
+      "emoji": "📊",
+      "style": "Pre-digested options with recommended path. Decision-ready, not raw problems. Commercial performance framing.",
+      "priorities": "Commercial performance, team capacity, pipeline health, hiring/resource decisions, creative brief generation",
+      "teamVaults": ["exec", "digital"],
+      "sharedMounts": ["guide-outputs/reports"],
+      "bootContext": ["PRIORITIES.md", "FY27-CEO-Commitments.md"],
+      "comms": "telegram",
+      "telegramBotRef": "telegram-hadley",
+      "telegramBotUsername": "GuideHadleyBot",
+      "telegramChatId": null,
+      "model": "anthropic/claude-sonnet-4-6",
+      "apiKeyRef": "exec",
+      "reviewMode": "hybrid",
+      "reviewRules": {
+        "factual": "Answer directly. Data is in the reports.",
+        "judgment": "Draft a response and escalate to Gareth via Slack DM for approval before sending.",
+        "outOfScope": "Say I do not have that context and offer to flag Gareth."
+      },
+      "heartbeat": "Weekly Monday 08:00 — commercial performance summary, pipeline health, team flags",
+      "permissionProfile": "personal",
+      "personSpecPath": "Agents/Personal/Hadley.md",
+      "status": "planned",
+      "rolloutOrder": 2,
+      "gates": {
+        "personSpecWritten": true,
+        "apiKeyProvisioned": true,
+        "templateReady": false,
+        "telegramBotCreated": false,
+        "telegramChatIdCollected": false,
+        "workspaceGenerated": false,
+        "registeredInOpenClaw": false,
+        "garethTested": false,
+        "personOnboarded": false,
+        "soulTuned": false
+      },
+      "deployedDate": null,
+      "notes": "Thursday 2026-05-14 reveal in 1-to-1 with Gareth. Bot username confirmed as GuideHadleyBot. Next: Gareth creates bot via BotFather, collects token + chat ID, Engineer runs generate.sh personal hadley."
+    },
+    "keith": {
+      "name": "Keith",
+      "fullName": "Keith Vincent",
+      "role": "Chief Executive Officer",
+      "tier": "exec",
+      "emoji": "🦁",
+      "style": "Conservation mission, vision framing. Digital as infrastructure not marketing. Big picture, not granular. Controllable vs structural lens.",
+      "priorities": "Strategic vision, controllable vs structural performance, digital infrastructure, conservation alignment, cross-brand portfolio health",
+      "teamVaults": ["exec"],
+      "sharedMounts": ["guide-outputs/reports", "guide-shared/brand"],
+      "bootContext": ["PRIORITIES.md", "FY27-CEO-Commitments.md"],
+      "comms": "telegram",
+      "telegramBotRef": "telegram-keith",
+      "telegramBotUsername": null,
+      "telegramChatId": null,
+      "model": "anthropic/claude-sonnet-4-6",
+      "apiKeyRef": "exec",
+      "reviewMode": "hybrid",
+      "reviewRules": {
+        "factual": "Answer directly. Data is in the reports.",
+        "judgment": "Draft a response and escalate to Gareth via Slack DM for approval before sending.",
+        "outOfScope": "Say I do not have that context and offer to flag Gareth."
+      },
+      "heartbeat": "Weekly Friday 16:00 — strategic summary, cross-brand health, key decisions",
+      "permissionProfile": "personal",
+      "personSpecPath": "Agents/Personal/Keith.md",
+      "status": "planned",
+      "rolloutOrder": 3,
+      "demoTarget": null,
+      "gates": {
+        "personSpecWritten": true,
+        "apiKeyProvisioned": true,
+        "templateReady": false,
+        "telegramBotCreated": false,
+        "telegramChatIdCollected": false,
+        "workspaceGenerated": false,
+        "registeredInOpenClaw": false,
+        "garethTested": false,
+        "personOnboarded": false,
+        "soulTuned": false
+      },
+      "deployedDate": null,
+      "notes": "Demo target (2026-05-10) missed — deferred to CHUNK-15. Waiting for Ubuntu machine setup."
+    },
+    "scott": {
+      "name": "Scott",
+      "fullName": "Scott Vincent",
+      "role": "Sales Director",
+      "tier": "domain",
+      "emoji": "🌍",
+      "style": "Product-oriented. Safari expertise. Natural language queries. Practical, not analytical.",
+      "priorities": "Safari product knowledge, sales collateral, competitive intelligence, camp portfolio, booking patterns",
+      "teamVaults": [],
+      "sharedMounts": ["guide-shared/kb/safari", "guide-shared/brand"],
+      "bootContext": [],
+      "comms": "telegram",
+      "telegramBotRef": "telegram-scott",
+      "telegramBotUsername": null,
+      "telegramChatId": null,
+      "model": "anthropic/claude-sonnet-4-6",
+      "apiKeyRef": "domain",
+      "reviewMode": "auto",
+      "reviewRules": {
+        "factual": "Answer directly from safari KB and brand context.",
+        "judgment": "Answer with caveats. Flag to Gareth if commercial implications.",
+        "outOfScope": "Say I do not have that context and offer to flag Gareth."
+      },
+      "heartbeat": "None initially",
+      "permissionProfile": "personal",
+      "personSpecPath": "Agents/Personal/Scott.md",
+      "status": "planned",
+      "rolloutOrder": 4,
+      "gates": {
+        "personSpecWritten": false,
+        "apiKeyProvisioned": false,
+        "templateReady": false,
+        "telegramBotCreated": false,
+        "telegramChatIdCollected": false,
+        "workspaceGenerated": false,
+        "registeredInOpenClaw": false,
+        "garethTested": false,
+        "personOnboarded": false,
+        "soulTuned": false
+      },
+      "deployedDate": null,
+      "notes": "Safari KB dependency — Scott's Word doc must be converted via Marker before instance is useful. Keith POC."
+    },
+    "caro": {
+      "name": "Caro",
+      "fullName": "Caroline Palazzo",
+      "role": "Group Head of Integration (Reservations)",
+      "tier": "domain",
+      "emoji": "📋",
+      "style": "Operational detail. Reservations pipeline focus. Non-technical user — clarity over sophistication.",
+      "priorities": "Reservation pipeline visibility, booking flow, camp availability, integration with sales KB",
+      "teamVaults": [],
+      "sharedMounts": ["guide-shared/kb/safari", "guide-shared/data/hubspot"],
+      "bootContext": [],
+      "comms": "telegram",
+      "telegramBotRef": "telegram-caro",
+      "telegramBotUsername": null,
+      "telegramChatId": null,
+      "model": "anthropic/claude-sonnet-4-6",
+      "apiKeyRef": "domain",
+      "reviewMode": "auto",
+      "reviewRules": {
+        "factual": "Answer directly from available data.",
+        "judgment": "Answer with caveats. Flag to Gareth if commercial implications.",
+        "outOfScope": "Say I do not have that context and offer to flag Gareth."
+      },
+      "heartbeat": "None initially",
+      "permissionProfile": "personal",
+      "personSpecPath": "Agents/Personal/Caro.md",
+      "status": "planned",
+      "rolloutOrder": 5,
+      "gates": {
+        "personSpecWritten": false,
+        "apiKeyProvisioned": false,
+        "templateReady": false,
+        "telegramBotCreated": false,
+        "telegramChatIdCollected": false,
+        "workspaceGenerated": false,
+        "registeredInOpenClaw": false,
+        "garethTested": false,
+        "personOnboarded": false,
+        "soulTuned": false
+      },
+      "deployedDate": null,
+      "notes": "Tied to Scott's safari KB work. Non-technical user — good test of accessibility."
+    },
+    "frances": {
+      "name": "Frances",
+      "fullName": "Frances TBC",
+      "role": "Performance Marketing Manager",
+      "tier": "domain",
+      "emoji": "📈",
+      "style": "Data-driven. Paid social focus. Brief automation interest. Precise, commercially minded.",
+      "priorities": "Paid social performance, brief automation, campaign management, CPL targets, creative testing",
+      "teamVaults": ["digital"],
+      "sharedMounts": ["guide-shared/data/paid"],
+      "bootContext": [],
+      "comms": "telegram",
+      "telegramBotRef": "telegram-frances",
+      "telegramBotUsername": null,
+      "telegramChatId": null,
+      "model": "anthropic/claude-sonnet-4-6",
+      "apiKeyRef": "domain",
+      "reviewMode": "auto",
+      "reviewRules": {
+        "factual": "Answer directly from digital vault and paid data.",
+        "judgment": "Answer with caveats. Flag to Gareth if budget implications.",
+        "outOfScope": "Say I do not have that context and offer to flag Gareth."
+      },
+      "heartbeat": "Daily 08:00 — paid social performance summary (when data pipeline is live)",
+      "permissionProfile": "personal",
+      "personSpecPath": "Agents/Personal/Frances.md",
+      "status": "planned",
+      "rolloutOrder": 6,
+      "gates": {
+        "personSpecWritten": false,
+        "apiKeyProvisioned": false,
+        "templateReady": false,
+        "telegramBotCreated": false,
+        "telegramChatIdCollected": false,
+        "workspaceGenerated": false,
+        "registeredInOpenClaw": false,
+        "garethTested": false,
+        "personOnboarded": false,
+        "soulTuned": false
+      },
+      "deployedDate": null,
+      "notes": null
+    },
+    "simon": {
+      "name": "Simon",
+      "fullName": "Simon TBC",
+      "role": "Chief B2B Sales Officer",
+      "tier": "domain",
+      "emoji": "🤝",
+      "style": "Trade ally framing. B2B pipeline focus. Practical, commercially minded.",
+      "priorities": "B2B pipeline health, trade partner relationships, cross-brand B2B performance, deal velocity",
+      "teamVaults": [],
+      "sharedMounts": ["guide-shared/data/hubspot", "guide-shared/brand"],
+      "bootContext": [],
+      "comms": "telegram",
+      "telegramBotRef": "telegram-simon",
+      "telegramBotUsername": null,
+      "telegramChatId": null,
+      "model": "anthropic/claude-sonnet-4-6",
+      "apiKeyRef": "domain",
+      "reviewMode": "auto",
+      "reviewRules": {
+        "factual": "Answer directly from available data.",
+        "judgment": "Answer with caveats. Flag to Gareth if commercial implications.",
+        "outOfScope": "Say I do not have that context and offer to flag Gareth."
+      },
+      "heartbeat": "None initially",
+      "permissionProfile": "personal",
+      "personSpecPath": "Agents/Personal/Simon.md",
+      "status": "planned",
+      "rolloutOrder": 7,
+      "gates": {
+        "personSpecWritten": false,
+        "apiKeyProvisioned": false,
+        "templateReady": false,
+        "telegramBotCreated": false,
+        "telegramChatIdCollected": false,
+        "workspaceGenerated": false,
+        "registeredInOpenClaw": false,
+        "garethTested": false,
+        "personOnboarded": false,
+        "soulTuned": false
+      },
+      "deployedDate": null,
+      "notes": null
+    },
+    "dean": {
+      "name": "Dean",
+      "fullName": "Dean TBC",
+      "role": "HR",
+      "tier": "domain",
+      "emoji": "👥",
+      "style": "People-oriented. Organisational structure focus. LLM training course participant.",
+      "priorities": "Org structure, headcount, onboarding, team capacity, LLM training course",
+      "teamVaults": [],
+      "sharedMounts": [],
+      "bootContext": [],
+      "comms": "telegram",
+      "telegramBotRef": "telegram-dean",
+      "telegramBotUsername": null,
+      "telegramChatId": null,
+      "model": "anthropic/claude-sonnet-4-6",
+      "apiKeyRef": "domain",
+      "reviewMode": "auto",
+      "reviewRules": {
+        "factual": "Answer directly from available data.",
+        "judgment": "Flag to Gareth.",
+        "outOfScope": "Say I do not have that context and offer to flag Gareth."
+      },
+      "heartbeat": "None initially",
+      "permissionProfile": "personal",
+      "personSpecPath": "Agents/Personal/Dean.md",
+      "status": "planned",
+      "rolloutOrder": 8,
+      "gates": {
+        "personSpecWritten": false,
+        "apiKeyProvisioned": false,
+        "templateReady": false,
+        "telegramBotCreated": false,
+        "telegramChatIdCollected": false,
+        "workspaceGenerated": false,
+        "registeredInOpenClaw": false,
+        "garethTested": false,
+        "personOnboarded": false,
+        "soulTuned": false
+      },
+      "deployedDate": null,
+      "notes": "People team vault does not exist yet. Last in rollout order — vault must be created and populated first."
+    }
+  },
+
+  "teamVaults": {
+    "digital": {
+      "displayName": "Digital Team",
+      "source": "local",
+      "localPath": "~/Obsidian/Wilderness-Guide/",
+      "oneDriveFolder": "Wilderness-Guide",
+      "status": "production",
+      "description": "Digital team operating system — backlogs, priorities, briefs, reports, CLAUDE.md conventions throughout.",
+      "channelAgents": ["data", "martech", "seo", "product", "hubspot"],
+      "gates": {
+        "oneDriveFolderCreated": true,
+        "symlinkOnMachine": true,
+        "claudeMdWritten": true,
+        "contentSeeded": true,
+        "agentsMounted": true
+      },
+      "deployedDate": "2026-04-30",
+      "notes": "Vault is local Obsidian sync at ~/Obsidian/Wilderness-Guide/ (not OneDrive direct). Symlinked to ~/guide-vault/teams/digital/. All 5 channel agents mounted and live."
+    },
+    "exec": {
+      "displayName": "Executive Team",
+      "source": "local",
+      "oneDriveFolder": null,
+      "status": "planned",
+      "description": "Board-level outputs, capital allocation reports, strategic context, FY targets.",
+      "channelAgents": [],
+      "gates": {
+        "oneDriveFolderCreated": false,
+        "symlinkOnMachine": false,
+        "claudeMdWritten": false,
+        "contentSeeded": false,
+        "agentsMounted": false
+      },
+      "deployedDate": null
+    },
+    "sales": {
+      "displayName": "Sales Team",
+      "source": "onedrive",
+      "oneDriveFolder": "Wilderness-Sales",
+      "status": "planned",
+      "description": "Sales team operational context. Created when Scott + Simon instances are live.",
+      "channelAgents": [],
+      "gates": {
+        "oneDriveFolderCreated": false,
+        "symlinkOnMachine": false,
+        "claudeMdWritten": false,
+        "contentSeeded": false,
+        "agentsMounted": false
+      },
+      "deployedDate": null
+    },
+    "reservations": {
+      "displayName": "Reservations Team",
+      "source": "onedrive",
+      "oneDriveFolder": "Wilderness-Reservations",
+      "status": "planned",
+      "description": "Reservations team context. Created when Caro's instance is live.",
+      "channelAgents": [],
+      "gates": {
+        "oneDriveFolderCreated": false,
+        "symlinkOnMachine": false,
+        "claudeMdWritten": false,
+        "contentSeeded": false,
+        "agentsMounted": false
+      },
+      "deployedDate": null
+    },
+    "people": {
+      "displayName": "People / HR",
+      "source": "onedrive",
+      "oneDriveFolder": "Wilderness-People",
+      "status": "planned",
+      "description": "Org structure, headcount, team capacity. Created when Dean's instance is live.",
+      "channelAgents": [],
+      "gates": {
+        "oneDriveFolderCreated": false,
+        "symlinkOnMachine": false,
+        "claudeMdWritten": false,
+        "contentSeeded": false,
+        "agentsMounted": false
+      },
+      "deployedDate": null
+    }
+  },
+
+  "channelAgents": {
+    "data": {
+      "displayName": "Data",
+      "role": "Data Intelligence Agent",
+      "emoji": "📊",
+      "teamVault": "digital",
+      "slackChannel": "#guide-data-backlog",
+      "slackChannelId": "C0ASP8ZD495",
+      "telegramBinding": "7971802067",
+      "apiKeyRef": "operational",
+      "permissionProfile": "channel",
+      "status": "production",
+      "gates": {
+        "workspaceGenerated": true,
+        "registeredInOpenClaw": true,
+        "slackBindingWired": true,
+        "tested": true
+      },
+      "deployedDate": "2026-04-20"
+    },
+    "martech": {
+      "displayName": "MarTech",
+      "role": "Marketing Technology Agent",
+      "emoji": "⚙️",
+      "teamVault": "digital",
+      "slackChannel": "#guide-martech-backlog",
+      "slackChannelId": "C0AT56RRUEP",
+      "apiKeyRef": "operational",
+      "permissionProfile": "channel",
+      "status": "production",
+      "gates": {
+        "workspaceGenerated": true,
+        "registeredInOpenClaw": true,
+        "slackBindingWired": true,
+        "tested": true
+      },
+      "deployedDate": "2026-04-20"
+    },
+    "seo": {
+      "displayName": "SEO",
+      "role": "SEO Intelligence Agent",
+      "emoji": "🔍",
+      "teamVault": "digital",
+      "slackChannel": "#seo-guide",
+      "slackChannelId": "C0ATXQ8MDS5",
+      "apiKeyRef": "operational",
+      "permissionProfile": "channel",
+      "status": "production",
+      "gates": {
+        "workspaceGenerated": true,
+        "registeredInOpenClaw": true,
+        "slackBindingWired": true,
+        "tested": true
+      },
+      "deployedDate": "2026-04-20"
+    },
+    "product": {
+      "displayName": "Digital Product",
+      "role": "Digital Product Agent",
+      "emoji": "🖥️",
+      "teamVault": "digital",
+      "slackChannel": "#guide-digital-product",
+      "slackChannelId": "C0ATLTNFF0X",
+      "additionalChannels": [
+        {"name": "#guide-digital-product-triage", "id": "C0AUT4WSPBJ"},
+        {"name": "#guide-digital-product-design-review", "id": "C0B2DFTFCDB"},
+        {"name": "#guide-digital-product-standup-digest", "id": "C0B2GU0RQJW"}
+      ],
+      "apiKeyRef": "operational",
+      "permissionProfile": "channel",
+      "status": "production",
+      "gates": {
+        "workspaceGenerated": true,
+        "registeredInOpenClaw": true,
+        "slackBindingWired": true,
+        "tested": true
+      },
+      "deployedDate": "2026-04-20"
+    },
+    "hubspot": {
+      "displayName": "HubSpot",
+      "role": "CRM Intelligence Agent",
+      "emoji": "🔶",
+      "teamVault": "digital",
+      "slackChannel": "#guide-hubspot",
+      "slackChannelId": "C0AUF97NJ0H",
+      "apiKeyRef": "operational",
+      "permissionProfile": "channel",
+      "status": "production",
+      "gates": {
+        "workspaceGenerated": true,
+        "registeredInOpenClaw": true,
+        "slackBindingWired": true,
+        "tested": true
+      },
+      "deployedDate": "2026-04-20"
+    }
+  },
+
+  "apiKeys": {
+    "exec": {
+      "description": "Claude Max Plus — Nick-approved, reserved for executive instances",
+      "provisioned": true,
+      "keyLocation": "~/guide-core/__CONFIG/keys/anthropic-exec",
+      "model": "anthropic/claude-sonnet-4-6",
+      "backgroundModel": "anthropic/claude-haiku-4-5",
+      "budgetOwner": "Nick Stone"
+    },
+    "domain": {
+      "description": "Wilderness digital budget — standard rate limits for domain users",
+      "provisioned": false,
+      "keyLocation": "~/guide-core/__CONFIG/keys/anthropic-domain",
+      "model": "anthropic/claude-sonnet-4-6",
+      "backgroundModel": "anthropic/claude-haiku-4-5",
+      "budgetOwner": "Wilderness digital budget"
+    },
+    "operational": {
+      "description": "Shared agents and channel agents — current live key",
+      "provisioned": true,
+      "keyLocation": "~/guide-core/__CONFIG/keys/anthropic-operational",
+      "model": "anthropic/claude-sonnet-4-6",
+      "backgroundModel": "anthropic/claude-haiku-4-5",
+      "budgetOwner": "Gareth Knight"
+    }
+  }
+}
