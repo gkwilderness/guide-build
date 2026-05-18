@@ -112,17 +112,16 @@ Scoped NOPASSWD entries only — not blanket sudo. Covers:
 
 ## SMB Shares
 
+**As implemented (2026-05-18):** Two broad shares scoped to working surfaces.
+
 | Share name | Path | Access | Notes |
 |------------|------|--------|-------|
-| `guide-teams` | /srv/guide-vaults/teams/ | gareth only (at launch) | Team vaults — read/write |
-| `guide-outputs` | /srv/guide-outputs/ | gareth only (at launch) | Agent outputs — read-only for non-admin |
-| `guide-data` | /srv/guide-data/ | gareth only | Pipeline data — restricted |
+| `srv` | /srv | gareth (admin users) | Full read/write to all service directories |
+| `home` | /home | gareth (admin users) | Access to /home/gareth and /home/engineer |
 
-**Not shared via SMB:**
-- /srv/openclaw/ — service runtime, never exposed
-- /home/gareth/ — admin home, never exposed
-- /srv/db/ — databases, never exposed
-- /srv/backup/ — backup staging, never exposed
+Mac mounts: `smb://guide-server/srv` and `smb://guide-server/home`
+
+**Not exposed via SMB:** /etc, /root, /var, /boot, /usr, /opt, /tmp, /proc, /sys, /dev — system-level edits go through SSH + sudo.
 
 Samba authenticates via smbpasswd (standalone, no AD). Gareth's SMB password set separately from system password.
 
@@ -257,6 +256,12 @@ All foundation decisions resolved 2026-05-18:
 
 ---
 
+## Known Issues — Flag for CHUNK-07
+
+- **`guide` user has unexpected sudo group membership** — verification gate shows `guide: groups=guide,adm,cdrom,sudo,...`. The spec requires the guide service user to have no sudo access. This was pre-existing on the machine and was not corrected during the foundation build. Must be addressed in CHUNK-07 hardening.
+
+---
+
 ## Status
 
-**Approved 2026-05-18.** All decisions resolved. Bootstrap prompt written. Ready for Engineer.
+**Foundation complete 2026-05-18.** Next: OpenClaw migration chunk, then CHUNK-07 security hardening.

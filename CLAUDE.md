@@ -2,16 +2,16 @@
 
 ## What This Is
 
-Guide is the AI chief of staff for Wilderness Safaris Group — serving 15+ people across three brands (Wilderness, Jacada, Yellow Zebra) via Telegram, WhatsApp, and Slack. It runs on OpenClaw (Claude API) on a dedicated Mac Mini.
+Guide is the AI chief of staff for Wilderness Safaris Group — serving 15+ people across three brands (Wilderness, Jacada, Yellow Zebra) via Telegram, WhatsApp, and Slack. It runs on OpenClaw (Claude API) on a dedicated HP Z8 G4 (Ubuntu 24.04).
 
 ## Three Repos
 
 | Repo | Path on machine | Purpose |
 |------|----------------|---------|
-| `guide-build` | `~/guide-build/` | Specs, architecture, agent definitions, build chunks — this repo |
-| `guide-core` | `~/guide-core/` | OpenClaw build files: agent factory, workspace templates, operational scripts |
-| `guide-engine` | `~/guide-engine/` | Data pipelines: ETL scripts, BQ tools, Ads/HubSpot/GA4 exporters |
-| *(output dir)* | `~/guide-data/` | Markdown exports written by guide-engine scripts, read by Guide agents. Not a repo — not yet populated. |
+| `guide-build` | `/srv/guide-build/` | Specs, architecture, agent definitions, build chunks — this repo |
+| `guide-core` | `/srv/guide-core/` | OpenClaw build files: agent factory, workspace templates, operational scripts |
+| `guide-engine` | `/srv/guide-engine/` | Data pipelines: ETL scripts, BQ tools, Ads/HubSpot/GA4 exporters |
+| *(output dir)* | `/srv/guide-data/` | Markdown exports written by guide-engine scripts, read by Guide agents. Not a repo — not yet populated. |
 
 **Read guide-core/CLAUDE.md for operational commands. Read guide-build/BUILD/DEV-CHUNKS/_CONVENTIONS.md before executing any chunk.**
 
@@ -19,7 +19,7 @@ Guide is the AI chief of staff for Wilderness Safaris Group — serving 15+ peop
 
 | Component | Detail |
 |-----------|--------|
-| **Runtime** | OpenClaw on Guide (HP Z8 G4, Ubuntu incoming — Mac Mini M2 Pro interim, Tailscale-connected) |
+| **Runtime** | OpenClaw on guide-server (HP Z8 G4, Ubuntu 24.04). Currently running on Mac Mini M2 Pro — migration in progress. |
 | **LLM** | Claude API (Sonnet for interactive, Haiku for cron) |
 | **Interface** | Telegram (leaders), WhatsApp (executives), Slack (team) |
 | **Vault access** | OneDrive on Guide machine + this guide-build vault (synced) |
@@ -78,8 +78,8 @@ guide-build/
 | Role | Machine | Claude | Function |
 |------|---------|--------|----------|
 | **Architect** | Mac (Gareth's laptop) | Claude Code in guide-build vault | Designs specs, writes chunks, manages docs, coordinates build |
-| **Engineer** | Guide (HP Z8 G4, Ubuntu — Mac Mini M2 Pro interim) | Claude Code on bare metal | Executes chunks, writes and runs code, commits to guide-core |
-| **Vault** | Guide (Mac Mini M2 Pro) | OpenClaw main agent | Live ops — serves team via Telegram/Slack, delivers briefs, observes channels |
+| **Engineer** | guide-server (HP Z8 G4, Ubuntu 24.04) | Claude Code on bare metal | Executes chunks, writes and runs code, commits to guide-core |
+| **Vault** | Mac Mini M2 Pro (pending migration to guide-server) | OpenClaw main agent | Live ops — serves team via Telegram/Slack, delivers briefs, observes channels |
 
 **How they interact:**
 - **Architect → Engineer:** CHUNK spec committed to vault. Engineer reads and executes directly.
@@ -116,15 +116,16 @@ Key sections: `persons` (identity, vaults, gates), `teamVaults` (source, gates),
 
 ## Build Status
 
-Guide is **live — Phase 1 mostly complete. HP Z8 migration in progress.**
+Guide is **live — Mac Mini running, Z8 foundation complete, migration pending.**
 
-- Guide machine: Mac Mini M2 Pro (interim) — HP Z8 G4 Ubuntu arriving this week
-- Tailscale: live — `guide.tailfbf66e.ts.net` (100.72.42.1), `tailscale serve` → port 18789
-- Telegram: @WildernessGuideBot + @WildernessGuideNickBot (Nick live). @GuideHadleyBot pending (Thursday reveal).
+- Guide machine: HP Z8 G4 (guide-server, Ubuntu 24.04) — foundation complete 2026-05-18
+- OpenClaw: still running on Mac Mini M2 Pro — migration to guide-server is next
+- Tailscale: guide-server live at 100.80.44.14. Mac Mini still on tailnet (100.72.42.1) until migration.
+- Telegram: @WildernessGuideBot + @WildernessGuideNickBot (Nick live). @GuideHadleyBot pending.
 - Slack: Socket mode, bi-directional — DMs + all channels live
 - WhatsApp: Deferred
-- Phase 0 remaining: CHUNK-07 hardening (deferred to Ubuntu), CHUNK-08 cron (deferred to Ubuntu)
-- Phase 1 remaining: CHUNK-11 Paperclip (deferred to Ubuntu), CHUNK-15 Keith instance, CHUNK-16 Hadley instance (Thursday)
+- Phase 0 remaining: CHUNK-07 hardening (Ubuntu), CHUNK-08 cron (Ubuntu)
+- Phase 1 remaining: CHUNK-11 Paperclip, CHUNK-15 Keith instance, CHUNK-16 Hadley instance
 
 ## Working With This Project
 
@@ -170,4 +171,4 @@ Check the schema for the exact field name and its location in the hierarchy. If 
 
 ---
 
-*Updated: 2026-05-13 — added Use-cases/ functional spec layer*
+*Updated: 2026-05-18 — Z8 foundation complete, migration pending*

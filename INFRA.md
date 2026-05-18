@@ -17,11 +17,12 @@ updated: 2026-04-20
 | Hardware | HP Z8 G4 (2× Xeon Gold 6134 3.20GHz, Nvidia RTX 3090 24GB VRAM) |
 | RAM | 128 GB |
 | Storage | 1 TB NVMe + 4 TB HDD |
-| OS | Ubuntu (Linux) — migrating from macOS week of 2026-05-12 |
+| OS | Ubuntu 24.04 LTS (kernel 6.17.0-23-generic) |
+| Hostname | guide-server |
 | Role | Guide runtime, data pipeline host, cron executor, local LLM inference |
-| File access | guide-build vault (synced), OneDrive (Wilderness, read-only), guide-core, guide-engine |
-| Network | Tailscale live — `guide.tailfbf66e.ts.net` (100.72.42.1), `tailscale serve` → gateway port 18789 |
-| Status | **Migration in progress — Ubuntu setup week of 2026-05-12. CHUNK-07 hardening spec to be re-written for Ubuntu + Docker before executing.** |
+| File access | /srv/guide-build (cloned), /srv/guide-core, /srv/guide-engine, /srv/onedrive (OneDrive — pending) |
+| Network | Tailscale live — `guide-server` (100.80.44.14) |
+| Status | **Foundation complete 2026-05-18. OpenClaw migration from Mac Mini pending. CHUNK-07 hardening pending.** |
 
 ### Local LLM Capability
 
@@ -40,11 +41,11 @@ The Guide machine has full read access to everything the Engineer Claude needs:
 
 | Resource | Path | Purpose |
 |----------|------|---------|
-| Guide vault | `$GUIDE_VAULT_PATH` | All specs, briefs, CLAUDE.md files, chunks |
-| guide-core | `~/guide-core/` | OpenClaw workspace templates, skills, agent framework |
-| guide-engine | `~/guide-engine/` | ETL scripts and exporters — code |
-| guide-data | `~/guide-data/` | Output directory — markdown written by guide-engine, read by agents |
-| OneDrive (Wilderness) | `~/Library/CloudStorage/OneDrive-Wilderness/` | Shared team documents, Guide anchor at `Documents/Wilderness/guide/` |
+| guide-build | `/srv/guide-build/` | All specs, briefs, CLAUDE.md files, chunks |
+| guide-core | `/srv/guide-core/` | OpenClaw workspace templates, skills, agent framework |
+| guide-engine | `/srv/guide-engine/` | ETL scripts and exporters — code |
+| guide-data | `/srv/guide-data/` | Output directory — markdown written by guide-engine, read by agents |
+| OneDrive (Wilderness) | `/srv/onedrive/` | Shared team documents — abraunegg/onedrive client, pending install |
 
 **Rule:** The Engineer Claude reads these directly. No need to copy specs into sessions.
 
@@ -53,7 +54,8 @@ The Guide machine has full read access to everything the Engineer Claude needs:
 | Machine | Role | OS | Tailscale IP | Status |
 |---------|------|-----|-------------|--------|
 | **Mac** | Gareth's laptop (Architect) | macOS | Active | Live |
-| **Guide** | Guide runtime | macOS | 100.72.42.1 | **Live** — `tailscale serve` proxies to gateway |
+| **Mac Mini M2 Pro** | OpenClaw runtime (interim) | macOS | 100.72.42.1 | Live — pending migration to guide-server |
+| **guide-server (HP Z8 G4)** | Guide runtime (target) | Ubuntu 24.04 | 100.80.44.14 | Foundation complete — OpenClaw migration pending |
 | **Sentinel** | Infrastructure monitoring | TBC | TBC | Planned |
 
 All machines connected via Tailscale. No public internet exposure.
@@ -62,10 +64,10 @@ All machines connected via Tailscale. No public internet exposure.
 
 | Service | Port | Machine | Status |
 |---------|------|---------|--------|
-| OpenClaw gateway | 18789 | Guide | **Live** — `gateway.bind = "lan"` (0.0.0.0 in container), `tailscale serve` proxies `https://guide.tailfbf66e.ts.net` |
-| OpenClaw Studio / TUI | — | Guide | **Live** — accessible via `https://guide.tailfbf66e.ts.net` (Tailscale auth required) |
-| ETL API (Python) | 5010 | Guide | Not started |
-| Docker Desktop | — | Guide | **Live** |
+| OpenClaw gateway | 18789 | Mac Mini (interim) | **Live on Mac Mini** — migration to guide-server pending |
+| OpenClaw Studio / TUI | — | Mac Mini (interim) | **Live on Mac Mini** — migration to guide-server pending |
+| ETL API (Python) | 5010 | guide-server | Not started |
+| Docker Engine | — | guide-server | **Live** (Docker 29.5.0) |
 
 All services bind to 127.0.0.1 (loopback only). Remote access via Tailscale.
 
@@ -75,12 +77,16 @@ Production directory structure for Guide. See [[personal-instance-architecture]]
 
 | Directory | Purpose | Write access |
 |-----------|---------|-------------|
-| `~/guide-vault/` | Agent workspaces — `main/`, `channel/`, `shared/`, `personal/` | Each agent writes only to its own subdirectory |
-| `~/guide-teams/` | Team vaults — `digital/` (symlink to OneDrive), `exec/`, `sales/`, `reservations/`, `people/` | Teams via OneDrive; agents read-only |
-| `~/guide-shared/` | Supplementary cross-team — `brand/`, `data/`, `kb/` | Pipeline agent or manual; agents read-only |
-| `~/guide-outputs/` | Agent outputs — append-only, git-tracked | Shared agents only; personal agents read-only |
+| `/srv/guide-vaults/private/` | Retained from Mac Mini build — do not remove until confirmed safe | guide-data group |
+| `/srv/guide-vaults/personal/` | Per-person agent workspaces (nick/, hadley/) | guide-data group |
+| `/srv/guide-vaults/shared/` | Cross-agent shared data | guide-data group |
+| `/srv/guide-vaults/teams/` | Team vaults — SMB share `guide-teams` | guide-data group; digital/ symlink to OneDrive deferred |
+| `/srv/guide-outputs/` | Agent outputs — append-only | SMB share `guide-outputs` |
+| `/srv/guide-data/` | Pipeline data — restricted | SMB share `guide-data`, gareth only |
+| `/srv/openclaw/workspace/` | OpenClaw workspace root | guide-data group |
+| `/srv/openclaw/config/` | OpenClaw config | guide-data group — managed via guide-core |
 
-**Status:** Not yet created — CHUNK-12 creates these directories and migrates existing workspaces from `~/.openclaw/workspace-*`.
+**Status:** Directories created — foundation complete 2026-05-18. OpenClaw migration to populate workspace/config pending.
 
 ## Access Model
 
@@ -110,9 +116,8 @@ Production directory structure for Guide. See [[personal-instance-architecture]]
 
 | What | Script | Schedule | Destination | Retention |
 |------|--------|----------|-------------|-----------|
-| `~/.openclaw/` (excl. logs, cron, delivery-queue, memory, devices) | `~/scripts/openclaw-backup.sh` | Daily 04:00 (crontab) | `~/openclaw-backups/openclaw-YYYYMMDD-HHMM.tar.gz` | 30 days |
-
-Log: `~/openclaw-backups/backup.log`
+| `~/.openclaw/` on Mac Mini | `~/guide-core/scripts/openclaw-backup.sh` | Daily 04:00 (crontab on Mac Mini) | `~/openclaw-backups/openclaw-YYYYMMDD-HHMM.tar.gz` | 30 days |
+| `/srv/` on guide-server | restic | Not yet configured — CHUNK-07 | TBD (local + Backblaze B2) | 7 daily, 4 weekly, 12 monthly |
 
 ## Slack DM Policy
 
