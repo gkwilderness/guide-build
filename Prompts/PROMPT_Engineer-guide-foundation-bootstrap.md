@@ -342,28 +342,20 @@ ssh -T git@github.com
 
 Expected: `Hi gkwilderness! You've successfully authenticated...`
 
-Clone repos to their permanent locations:
+Clone the Architect vault — the Engineer reads specs from here throughout the build:
 
 ```bash
 git clone git@github.com:gkwilderness/guide-build.git /srv/guide-build
-git clone git@github.com:gkwilderness/guide-core.git /srv/guide-core
-git clone git@github.com:gkwilderness/guide-engine.git /srv/guide-engine
-```
-
-Fix ownership after clone:
-
-```bash
 sudo chown -R gareth:srv-data /srv/guide-build
-sudo chown -R gareth:srv-data /srv/guide-core
-sudo chown -R gareth:srv-data /srv/guide-engine
 ```
 
 Verify:
 
 ```bash
 ls /srv/guide-build
-ls /srv/guide-core
 ```
+
+Note: `guide-core` and `guide-engine` are cloned in their respective service chunks, not here.
 
 ---
 
@@ -436,8 +428,6 @@ cat >> ~/.bashrc << 'EOF'
 
 # Guide environment
 export GUIDE_BUILD="/srv/guide-build"
-export GUIDE_CORE="/srv/guide-core"
-export GUIDE_ENGINE="/srv/guide-engine"
 export GUIDE_VAULTS="/srv/guide-vaults"
 export OPENCLAW_WORKSPACE="/srv/openclaw/workspace"
 export OPENCLAW_CONFIG="/srv/openclaw/config"
@@ -481,8 +471,6 @@ ripgrep --version 2>/dev/null || rg --version 2>/dev/null || echo "ripgrep: not 
 ffmpeg -version 2>/dev/null | head -1 || echo "ffmpeg: not found"
 echo "--- repos ---"
 ls /srv/guide-build 2>/dev/null && echo "✓ guide-build" || echo "✗ guide-build not found"
-ls /srv/guide-core 2>/dev/null && echo "✓ guide-core" || echo "✗ guide-core not found"
-ls /srv/guide-engine 2>/dev/null && echo "✓ guide-engine" || echo "✗ guide-engine not found"
 echo "=== done ==="
 ```
 
