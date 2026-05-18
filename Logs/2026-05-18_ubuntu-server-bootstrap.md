@@ -21,7 +21,7 @@ author: Engineer (Claude Code on Z8)
 
 ## What this was
 
-The clean-slate foundation build for the new Guide host. Before this run, the Z8 had Ubuntu installed and `gareth`/`guide`/`engineer` users created — nothing else. After this run, the box has: hostname, base packages, Tailscale on the tailnet, full `/srv/` tree with correct ownership and modes, Samba serving three shares, Docker, scoped sudoers, GitHub SSH key registered, `guide-build` cloned, Node 24 / Python 3.11 / Ruby 3.2.2 via nvm/pyenv/rbenv, env vars in `.bashrc`, verification gate passed.
+The clean-slate foundation build for the new Guide host. Before this run, the Z8 had Ubuntu installed and `gareth`/`guide`/`engineer` users created — nothing else. After this run, the box has: hostname (`guide-server`), base packages, Tailscale on the tailnet, full `/srv/` tree with correct ownership and modes, Samba serving two scoped shares (`srv` and `home`), Docker, scoped sudoers, GitHub SSH key registered, `guide-build` cloned, Node 24 / Python 3.11 / Ruby 3.2.2 via nvm/pyenv/rbenv, env vars in `.bashrc`, verification gate passed.
 
 ---
 
@@ -68,11 +68,13 @@ To run Steps 2–13 without per-step password prompts, a temporary `/etc/sudoers
 
 ### `smbpasswd -a gareth` is interactive — left to Gareth
 
-Step 6's `sudo smbpasswd -a gareth` prompts twice for a new password and cannot run unattended. The Samba config and services were brought up by the bootstrap; Gareth set the SMB password manually and confirmed Finder → `smb://<host>` works against all three shares.
+Step 6's `sudo smbpasswd -a gareth` prompts twice for a new password and cannot run unattended. The Samba config and services were brought up by the bootstrap; Gareth set the SMB password manually and confirmed Finder → `smb://<host>` works against the initial 3-share layout. The share layout was subsequently changed to the 2-share scoped version (see Resolved Decisions §2); SMB auth uses the same `smbpasswd` credential — no re-test from the Mac has been recorded yet as of this writing.
 
 ---
 
 ## End-state verification (from Step 14 gate)
+
+> **Note:** This output was captured *before* the post-bootstrap rename to `guide-server`, which is why the `hostname` line below reads `guide`. The rename to `guide-server` (system + Tailscale) happened after this verification gate passed. Current hostname is `guide-server`. See [Resolved Decisions §1](#1-renamed-the-machine-to-guide-server-).
 
 ```
 === guide foundation check ===
@@ -189,12 +191,14 @@ git -C /srv/guide-build pull
 
 | File | Change |
 |---|---|
-| `/etc/hostname` | (pre-existing as `guide`) |
-| `/etc/samba/smb.conf` | rewritten; original backed up to `smb.conf.bak` |
-| `/etc/sudoers.d/gareth` | scoped NOPASSWD entries |
-| `/etc/sudoers.d/gareth-bootstrap` | created and deleted (used for unattended run) |
+| `/etc/hostname` | set to `guide-server` (was `guide` before this session) |
+| `/etc/hosts` | `127.0.1.1` line updated from the original install hostname `user-HP-Z8-G4-Workstation` to `guide-server`. Hostname resolution now matches — no more `sudo: unable to resolve host` warnings. |
+| `/etc/samba/smb.conf` | rewritten three times across the session; final state is the 2-share scoped layout (`srv` + `home`). Original backed up to `smb.conf.bak`. |
+| `/etc/sudoers.d/gareth` | scoped NOPASSWD entries (final state) |
+| `/etc/sudoers.d/gareth-bootstrap` | created and deleted (used for unattended runs — final state: deleted) |
 | `~/.ssh/id_ed25519` | pre-existing; registered with GitHub |
 | `~/.bashrc` | nvm init, pyenv init, rbenv init, Guide env vars |
+| `~/.gitconfig` | set globally: `user.name = "Gareth Knight"`, `user.email = "garethk@wildernessdestinations.com"` (so Z8-originating commits match Mac-originating ones) |
 | `~/.nvm/`, `~/.pyenv/`, `~/.rbenv/` | new — toolchain installs |
 
 ---
