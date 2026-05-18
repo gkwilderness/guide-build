@@ -59,67 +59,52 @@ Scoped NOPASSWD entries only — not blanket sudo. Covers:
 
 ```
 /srv/
-  guide/                  ← OpenClaw runtime data + vaults
-    vaults/
-      main/
-      channel/
-      personal/
-      shared/
-    teams/                ← SMB share target (guide-teams)
-      digital/            ← symlink or sync from OneDrive
-      exec/
-      sales/
-      reservations/
-      people/
-    outputs/              ← SMB share target (guide-outputs) — append-only, git-tracked
-    data/                 ← Pipeline data (written by guide-engine, read by agents)
-
-  hermes/                 ← Hermes Agent
-    profiles/             ← One subdirectory per profile (analyst-paid, analyst-seo, etc.)
-    data/                 ← Shared data accessible to all profiles
-
-  paperclip/              ← Paperclip orchestration
-    data/
-
-  huginn/                 ← Huginn automation platform
-    data/
-
-  openwebui/              ← Open WebUI
-    data/
-
-  ollama/                 ← Ollama model storage — symlink or mount to 4TB HDD
-    models/               ← Large files — must live on HDD, not NVMe
-
-  landing-pages/          ← Web properties (static or dynamic)
-
-  compose/                ← All Docker Compose files, one per service
-    guide.yml
-    hermes.yml
-    paperclip.yml
-    huginn.yml
-    openwebui.yml
-    ollama.yml
-    db.yml
-    onedrive.yml
-    backup.yml
-    monitoring.yml
-
-  db/                     ← All persistent database storage
-    postgres/             ← Postgres data dir (one instance, multiple DBs inside)
-    redis/                ← Redis data dir
-    clickhouse/           ← Analytics DB (see decision below)
-
-  backup/                 ← Backup staging
-    dumps/                ← Pre-snapshot DB dumps (Postgres, Redis)
-    config/               ← restic config, repo locations, exclusions
-
-  onedrive/               ← OneDrive mount point (abraunegg/onedrive client)
-
-  logs/                   ← Centralised log output (optional — Docker logging may cover this)
+/srv/logs/
+/srv/guide-build/          ← Architect vault — specs, chunks, agent definitions (git repo, read-only on this machine)
+/srv/guide-core/           ← OpenClaw build files — agent factory, workspace templates, skills (git repo)
+/srv/guide-engine/         ← Data pipelines — ETL scripts, BQ, HubSpot, GA4, Ads exporters (git repo)
+/srv/guide-data/           ← Pipeline data written by guide-engine, read by agents
+/srv/guide-outputs/        ← Agent outputs — append-only, git-tracked (SMB share: guide-outputs)
+/srv/guide-vaults/         ← All agent vaults
+/srv/guide-vaults/private/           ← Retained from Mac Mini build — do not remove until confirmed safe
+/srv/guide-vaults/personal/          ← Per-person agent workspaces
+/srv/guide-vaults/personal/nick/
+/srv/guide-vaults/personal/hadley/
+/srv/guide-vaults/shared/            ← Cross-agent shared data
+/srv/guide-vaults/teams/             ← Team vaults (SMB share: guide-teams)
+/srv/guide-vaults/teams/digital/     ← Symlink to OneDrive — deferred, wire up after services stable
+/srv/guide-vaults/teams/exco/
+/srv/guide-vaults/teams/sales/
+/srv/guide-vaults/teams/reservations/
+/srv/guide-vaults/teams/hr/
+/srv/openclaw/             ← OpenClaw runtime
+/srv/openclaw/workspace/   ← OpenClaw workspace root (replaces ~/.openclaw/workspace)
+/srv/openclaw/config/      ← OpenClaw config (replaces ~/.openclaw/openclaw.json)
+/srv/hermes/               ← Hermes Agent
+/srv/hermes/profiles/      ← One subdirectory per profile (analyst-paid, analyst-seo, etc.)
+/srv/hermes/data/          ← Shared data accessible to all profiles
+/srv/paperclip/            ← Paperclip orchestration
+/srv/paperclip/data/
+/srv/huginn/               ← Huginn automation platform
+/srv/huginn/data/
+/srv/openwebui/            ← Open WebUI
+/srv/openwebui/data/
+/srv/ollama/               ← Ollama model storage — must live on 4TB HDD, not NVMe
+/srv/ollama/models/
+/srv/landing-pages/        ← Web properties
+/srv/compose/              ← All Docker Compose files, one per service
+/srv/db/                   ← All persistent database storage
+/srv/db/postgres/          ← Postgres data dir (one instance, multiple DBs inside)
+/srv/db/redis/             ← Redis data dir
+/srv/db/clickhouse/        ← Analytics DB — deferred, do not create yet
+/srv/backup/               ← Backup staging
+/srv/backup/dumps/         ← Pre-snapshot DB dumps (Postgres, Redis)
+/srv/backup/config/        ← restic config, repo locations, exclusions
+/srv/onedrive/             ← OneDrive mount point (abraunegg/onedrive client)
 ```
 
 **Storage allocation:**
-- NVMe (1TB): OS, /srv/ (all except ollama models), databases, Docker images
+- NVMe (1TB): OS, all of /srv/ except Ollama models, databases, Docker images
 - HDD (4TB): /srv/ollama/models/, long-term backup staging, archive data
 
 ---
@@ -128,12 +113,12 @@ Scoped NOPASSWD entries only — not blanket sudo. Covers:
 
 | Share name | Path | Access | Notes |
 |------------|------|--------|-------|
-| `guide-teams` | /srv/guide/teams/ | gareth, smb-users | Team vaults — read/write |
-| `guide-outputs` | /srv/guide/outputs/ | gareth, smb-users | Agent outputs — read-only for non-admin |
-| `guide-data` | /srv/guide/data/ | gareth only | Pipeline data — restricted |
+| `guide-teams` | /srv/guide-vaults/teams/ | gareth only (at launch) | Team vaults — read/write |
+| `guide-outputs` | /srv/guide-outputs/ | gareth only (at launch) | Agent outputs — read-only for non-admin |
+| `guide-data` | /srv/guide-data/ | gareth only | Pipeline data — restricted |
 
 **Not shared via SMB:**
-- /home/guide/ — service runtime, never exposed
+- /srv/openclaw/ — service runtime, never exposed
 - /home/gareth/ — admin home, never exposed
 - /srv/db/ — databases, never exposed
 - /srv/backup/ — backup staging, never exposed
@@ -235,17 +220,14 @@ The guide-build vault (specs, prompts, chunks, architecture docs) is an Obsidian
 
 **Decision:** guide-build is a Git repository, not an Obsidian Sync vault.
 
-- **Initial location on Huginn:** `/home/gareth/guide-build/` — cloned here first so Engineer (Claude Code) can read and work from it immediately with no permissions complexity
-- **Final location:** `/srv/guide-build/` — moved here once the foundation build is complete and `/srv/` permissions are stable
+- **Location:** `/srv/guide-build/` — cloned directly to its permanent location during foundation build
 - Synced via: Git (private GitHub repo)
 - Source of truth: Gareth's Mac (push from Mac after edits)
 - To get updates on the server: `git pull` in the current location
 - Obsidian on the Mac continues to read/write the vault normally — it just also happens to be a git repo
 - Agents and Claude Code on the server read from whichever location is current; no Obsidian app needed server-side
 
-**Migration step** (post-foundation): `sudo mv /home/gareth/guide-build /srv/guide-build && sudo chown -R gareth:guide-data /srv/guide-build`
-
-**Prerequisite before Linux build starts:** guide-build needs a GitHub remote created and the repo initialised. This is Gareth's action.
+**Prerequisite before Linux build starts:** guide-build GitHub repo must exist and be initialised. ✓ Done 2026-05-18.
 
 ---
 
