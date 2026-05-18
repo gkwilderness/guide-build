@@ -34,7 +34,7 @@ The clean-slate foundation build for the new Guide host. Before this run, the Z8
 | 3 | Tailscale | ✓ done | Joined tailnet at `100.80.44.14`. Initially registered as `guide-1` (old Mac Mini held `guide`); renamed to `guide-server` post-bootstrap. |
 | 4 | Users + groups | ✓ done | gareth/guide/engineer all existed; only `engineer` needed `srv-data` added |
 | 5 | `/srv/` tree | ✓ done | 19 top-level dirs; ownership and modes per spec |
-| 6 | Samba | ✓ done | Initial smb.conf with 3 named shares (`guide-teams`, `guide-outputs`, `guide-data`) installed and smbd/nmbd active. SMB password set manually by Gareth (`smbpasswd -a gareth`) and Mac → SMB verified against the 3 shares. **Post-bootstrap:** smb.conf rewritten to a single `everything` share rooted at `/` with `admin users = gareth` — gareth has full read/write across the whole filesystem via SMB (see Resolved Decisions). |
+| 6 | Samba | ✓ done | Initial smb.conf with 3 named shares (`guide-teams`, `guide-outputs`, `guide-data`) installed and smbd/nmbd active. SMB password set manually by Gareth (`smbpasswd -a gareth`) and Mac → SMB verified against the 3 shares. **Final layout** (after a brief misstep — see Resolved Decisions): two shares scoped to working surfaces — `srv` at `/srv` and `home` at `/home`, both with `admin users = gareth`. |
 | 7 | Docker | ✓ done | Docker 29.5.0 + Compose v5.1.3, gareth + guide added to docker group |
 | 8 | Scoped sudoers | ✓ done | `/etc/sudoers.d/gareth` with scoped NOPASSWD entries for systemctl on openclaw/hermes/huginn/ollama + ufw + restic. Validated via `visudo -c`. |
 | 9 | GitHub SSH + clone | ✓ done | Existing key at `~/.ssh/id_ed25519.pub` was already registered with `gkwilderness` GitHub account. `guide-build` cloned to `/srv/guide-build` and chowned to `gareth:srv-data`. |
@@ -116,7 +116,7 @@ ffmpeg  6.1.1-3ubuntu5
 | OS hostname | `guide-server` | Renamed from `guide` post-bootstrap. Convention: box is `guide-server`, AI runtime on the box is `guide`. |
 | Tailscale node | `guide-server` | Renamed from `guide-1`. Old Mac Mini still owns `guide` on the tailnet — no collision. |
 | Tailscale IP | `100.80.44.14` | Reachable from any tailnet member |
-| Samba | `everything` share at `/` | `admin users = gareth` — gareth has full read/write across the whole filesystem via SMB. Old 3-share layout retired. |
+| Samba | `srv` (`/srv`) + `home` (`/home`) | Two shares, both `admin users = gareth`. Working surfaces only — `/etc`, `/root`, `/var`, etc. are not exposed via SMB. Old 3-share layout retired. |
 
 ---
 
@@ -133,22 +133,35 @@ Bootstrap prompt (`Prompts/PROMPT_Engineer-guide-foundation-bootstrap.md`) updat
 
 **Still outstanding (architect task, not done in this session):** `CLAUDE.md`, `00_Guide-Project-Brief.md`, and `INFRA.md` still refer to "the Guide machine" / "Mac Mini M2 Pro interim" — those are architect-side spec docs and should be updated separately to reflect the `guide-server` convention and that the Z8 is now live.
 
-### 2. Samba — full filesystem access ✓
+### 2. Samba — scoped to working surfaces ✓
 
-Replaced the 3-share layout (`guide-teams`, `guide-outputs`, `guide-data`) with a single share called `everything`:
+Two attempts:
+
+**First attempt (over-permissive, corrected):** a single `everything` share rooted at `/` with `admin users = gareth`. Effectively gave SMB-as-root access to `/etc/shadow`, `/root/`, `/var/log/`, `/var/lib/docker/`, `/boot/` — far beyond what was actually wanted.
+
+**Final layout:** two shares scoped to the working surfaces of the box.
 
 ```ini
-[everything]
-   path = /
+[srv]
+   path = /srv
    valid users = gareth
-   admin users = gareth     ; ops run as root for SMB user gareth
+   admin users = gareth      ; r/w into subtrees owned by guide or root
    read only = no
-   wide links = yes
+   create mask = 0664
+   directory mask = 0775
+
+[home]
+   path = /home
+   valid users = gareth
+   admin users = gareth      ; access /home/engineer alongside /home/gareth
+   read only = no
+   create mask = 0664
+   directory mask = 0775
 ```
 
-Reasoning per Gareth: "Just assume that this is the machine that I can see from wherever I am, and I can browse the entire file system. Don't make any restrictions for me. I'm the root user."
+Mac mounts: `smb://guide-server/srv` and `smb://guide-server/home`.
 
-The `admin users = gareth` directive means Samba performs file operations with root privileges when gareth is the authenticated SMB user — full read/write on `/etc`, `/var/log`, `/srv` subtrees that are owned by other users, etc.
+`/etc`, `/root`, `/var`, `/boot`, `/usr`, `/opt`, `/tmp`, `/proc`, `/sys`, `/dev` — none exposed via SMB. System-level edits go through SSH + `sudo`.
 
 ---
 
