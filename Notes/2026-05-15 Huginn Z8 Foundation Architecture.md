@@ -1,22 +1,23 @@
 ---
-title: "Huginn Z8 — Foundation Architecture"
+title: "Guide Z8 — Foundation Architecture"
 type: note
 area: infra
 project: Guide
-tags: [infra, z8, huginn, ubuntu, docker, filesystem, smb, backup, onedrive]
-status: draft — needs Architect decisions before build
+tags: [infra, z8, guide, ubuntu, docker, filesystem, smb, backup, onedrive]
+status: approved — ready for Engineer
 created: 2026-05-15
+updated: 2026-05-18
 ---
 
-# Huginn Z8 — Foundation Architecture
+# Guide Z8 — Foundation Architecture
 
-Pre-build system design for the HP Z8 G4 (Huginn). This document must be completed and signed off by Gareth before any Engineer build work begins. Claude Code implements from this spec — gaps discovered mid-build are expensive.
+Pre-build system design for the HP Z8 G4 (Guide machine). This document is the Architect's signed-off spec — the Engineer (Claude Code on the Guide machine) implements from this directly. Do not start the build without reading it in full.
 
 ---
 
 ## Machine
 
-- Hostname: huginn
+- Hostname: guide
 - Hardware: HP Z8 G4, 2× Xeon Gold 6134, 128GB RAM, 1TB NVMe, 4TB HDD, RTX 3090 24GB VRAM
 - OS: Ubuntu (latest LTS)
 - Role: Guide runtime, data pipeline host, local LLM inference, web services, automation
@@ -28,7 +29,7 @@ Pre-build system design for the HP Z8 G4 (Huginn). This document must be complet
 | User | Type | Shell | Purpose | Notes |
 |------|------|-------|---------|-------|
 | `gareth` | Admin | bash | Daily management, SSH access, sudo (scoped) | Pre-exists on machine |
-| `guide` | Service | nologin | Runs OpenClaw, owns /home/guide/ runtime state | Pre-exists — shell must be corrected to nologin and account locked |
+| `guide` | Service | nologin | Runs OpenClaw, owns /srv/openclaw/ runtime state | Pre-exists — shell must be corrected to nologin and account locked |
 | `engineer` | Restricted | bash | Claude Code sessions — scoped to code repos only | Created during foundation build |
 
 **Note (confirmed 2026-05-18):** `guide` already exists on this machine. Do not attempt to recreate it — correct it:
@@ -41,7 +42,7 @@ sudo passwd -l guide
 
 | Group | Members | Purpose | Notes |
 |-------|---------|---------|-------|
-| `guide-data` | guide, gareth | Read/write to /srv/guide/ | Created during foundation build |
+| `guide-data` | guide, gareth | Read/write to /srv/guide-vaults/, /srv/openclaw/ | Created during foundation build |
 | `srv-data` | guide, gareth, engineer | Read/write to /srv/ service directories | Created during foundation build |
 | `docker` | gareth, guide | Run docker compose without sudo | Created by Docker installer — add gareth after Step 5, not before |
 | `smb-users` | gareth + any future SMB users | Samba access | Created during foundation build |
@@ -59,67 +60,52 @@ Scoped NOPASSWD entries only — not blanket sudo. Covers:
 
 ```
 /srv/
-  guide/                  ← OpenClaw runtime data + vaults
-    vaults/
-      main/
-      channel/
-      personal/
-      shared/
-    teams/                ← SMB share target (guide-teams)
-      digital/            ← symlink or sync from OneDrive
-      exec/
-      sales/
-      reservations/
-      people/
-    outputs/              ← SMB share target (guide-outputs) — append-only, git-tracked
-    data/                 ← Pipeline data (written by guide-engine, read by agents)
-
-  hermes/                 ← Hermes Agent
-    profiles/             ← One subdirectory per profile (analyst-paid, analyst-seo, etc.)
-    data/                 ← Shared data accessible to all profiles
-
-  paperclip/              ← Paperclip orchestration
-    data/
-
-  huginn/                 ← Huginn automation platform
-    data/
-
-  openwebui/              ← Open WebUI
-    data/
-
-  ollama/                 ← Ollama model storage — symlink or mount to 4TB HDD
-    models/               ← Large files — must live on HDD, not NVMe
-
-  landing-pages/          ← Web properties (static or dynamic)
-
-  compose/                ← All Docker Compose files, one per service
-    guide.yml
-    hermes.yml
-    paperclip.yml
-    huginn.yml
-    openwebui.yml
-    ollama.yml
-    db.yml
-    onedrive.yml
-    backup.yml
-    monitoring.yml
-
-  db/                     ← All persistent database storage
-    postgres/             ← Postgres data dir (one instance, multiple DBs inside)
-    redis/                ← Redis data dir
-    clickhouse/           ← Analytics DB (see decision below)
-
-  backup/                 ← Backup staging
-    dumps/                ← Pre-snapshot DB dumps (Postgres, Redis)
-    config/               ← restic config, repo locations, exclusions
-
-  onedrive/               ← OneDrive mount point (abraunegg/onedrive client)
-
-  logs/                   ← Centralised log output (optional — Docker logging may cover this)
+/srv/logs/
+/srv/guide-build/          ← Architect vault — specs, chunks, agent definitions (git repo, read-only on this machine)
+/srv/guide-core/           ← OpenClaw build files — agent factory, workspace templates, skills (git repo)
+/srv/guide-engine/         ← Data pipelines — ETL scripts, BQ, HubSpot, GA4, Ads exporters (git repo)
+/srv/guide-data/           ← Pipeline data written by guide-engine, read by agents
+/srv/guide-outputs/        ← Agent outputs — append-only, git-tracked (SMB share: guide-outputs)
+/srv/guide-vaults/         ← All agent vaults
+/srv/guide-vaults/private/           ← Retained from Mac Mini build — do not remove until confirmed safe
+/srv/guide-vaults/personal/          ← Per-person agent workspaces
+/srv/guide-vaults/personal/nick/
+/srv/guide-vaults/personal/hadley/
+/srv/guide-vaults/shared/            ← Cross-agent shared data
+/srv/guide-vaults/teams/             ← Team vaults (SMB share: guide-teams)
+/srv/guide-vaults/teams/digital/     ← Symlink to OneDrive — deferred, wire up after services stable
+/srv/guide-vaults/teams/exco/
+/srv/guide-vaults/teams/sales/
+/srv/guide-vaults/teams/reservations/
+/srv/guide-vaults/teams/hr/
+/srv/openclaw/             ← OpenClaw runtime
+/srv/openclaw/workspace/   ← OpenClaw workspace root (replaces ~/.openclaw/workspace)
+/srv/openclaw/config/      ← OpenClaw config (replaces ~/.openclaw/openclaw.json)
+/srv/hermes/               ← Hermes Agent
+/srv/hermes/profiles/      ← One subdirectory per profile (analyst-paid, analyst-seo, etc.)
+/srv/hermes/data/          ← Shared data accessible to all profiles
+/srv/paperclip/            ← Paperclip orchestration
+/srv/paperclip/data/
+/srv/huginn/               ← Huginn automation platform
+/srv/huginn/data/
+/srv/openwebui/            ← Open WebUI
+/srv/openwebui/data/
+/srv/ollama/               ← Ollama model storage — must live on 4TB HDD, not NVMe
+/srv/ollama/models/
+/srv/landing-pages/        ← Web properties
+/srv/compose/              ← All Docker Compose files, one per service
+/srv/db/                   ← All persistent database storage
+/srv/db/postgres/          ← Postgres data dir (one instance, multiple DBs inside)
+/srv/db/redis/             ← Redis data dir
+/srv/db/clickhouse/        ← Analytics DB — deferred, do not create yet
+/srv/backup/               ← Backup staging
+/srv/backup/dumps/         ← Pre-snapshot DB dumps (Postgres, Redis)
+/srv/backup/config/        ← restic config, repo locations, exclusions
+/srv/onedrive/             ← OneDrive mount point (abraunegg/onedrive client)
 ```
 
 **Storage allocation:**
-- NVMe (1TB): OS, /srv/ (all except ollama models), databases, Docker images
+- NVMe (1TB): OS, all of /srv/ except Ollama models, databases, Docker images
 - HDD (4TB): /srv/ollama/models/, long-term backup staging, archive data
 
 ---
@@ -128,12 +114,12 @@ Scoped NOPASSWD entries only — not blanket sudo. Covers:
 
 | Share name | Path | Access | Notes |
 |------------|------|--------|-------|
-| `guide-teams` | /srv/guide/teams/ | gareth, smb-users | Team vaults — read/write |
-| `guide-outputs` | /srv/guide/outputs/ | gareth, smb-users | Agent outputs — read-only for non-admin |
-| `guide-data` | /srv/guide/data/ | gareth only | Pipeline data — restricted |
+| `guide-teams` | /srv/guide-vaults/teams/ | gareth only (at launch) | Team vaults — read/write |
+| `guide-outputs` | /srv/guide-outputs/ | gareth only (at launch) | Agent outputs — read-only for non-admin |
+| `guide-data` | /srv/guide-data/ | gareth only | Pipeline data — restricted |
 
 **Not shared via SMB:**
-- /home/guide/ — service runtime, never exposed
+- /srv/openclaw/ — service runtime, never exposed
 - /home/gareth/ — admin home, never exposed
 - /srv/db/ — databases, never exposed
 - /srv/backup/ — backup staging, never exposed
@@ -148,17 +134,14 @@ One Postgres container, multiple databases inside it:
 
 | Database | Used by | Notes |
 |----------|---------|-------|
-| `huginn` | Huginn | Required by Huginn |
+| `huginn` | Huginn automation platform | Required by Huginn |
 | `openwebui` | Open WebUI | Optional — defaults to SQLite, Postgres for production |
-| `paperclip` | Paperclip | TBC — depends on Paperclip requirements |
+| `paperclip` | Paperclip | Requires PostgreSQL |
 | `guide_pipeline` | guide-engine | Pipeline data, HubSpot exports, GA4 |
 
 Redis: single instance, used by Huginn (required) and any other services that need queuing/caching.
 
-**Analytics DB — decision needed:**
-- DuckDB: simpler, file-based, no server, good for ad-hoc analysis. Limitation: single writer.
-- ClickHouse: server-based, columnar, scales well, better for high-volume pipeline data.
-- Recommendation: DuckDB to start (low ops overhead), migrate to ClickHouse if volume demands it.
+**Analytics DB:** Deferred — DuckDB vs ClickHouse decision TBD after foundation is stable.
 
 **SQLite stays per-service** for Hermes and OpenClaw lightweight state — don't migrate unnecessarily.
 
@@ -177,12 +160,12 @@ Redis: single instance, used by Huginn (required) and any other services that ne
 
 ## OneDrive
 
-- Client: abraunegg/onedrive (most maintained Linux client — confirm before locking in)
+- Client: abraunegg/onedrive
 - Mount: /srv/onedrive/
-- Runs as: systemd service under gareth or a dedicated onedrive user
+- Runs as: systemd service under gareth
 - Syncs: Wilderness Safaris shared drives → /srv/onedrive/
-- Symlink: /srv/guide/teams/digital/ → relevant OneDrive path for Obsidian vault access
-- Decision needed: sync (two-way) or download-only (safer for production server)
+- Sync mode: two-way
+- Symlink: /srv/guide-vaults/teams/digital/ → relevant OneDrive path — deferred, wire up after services are stable
 
 ---
 
@@ -196,7 +179,7 @@ Redis: single instance, used by Huginn (required) and any other services that ne
 - Schedule: systemd timer (not cron) — daily at 02:00
 - Destinations:
   - Local: secondary internal or USB drive (fast recovery)
-  - Offsite: Backblaze B2 (decision needed — B2 account required)
+  - Offsite: Backblaze B2 — deferred, set up after foundation is stable
 - Retention: 7 daily, 4 weekly, 12 monthly
 - Monitoring: backup failure → alert to Gareth via Telegram
 
@@ -215,17 +198,17 @@ gareth in docker group — no sudo needed for docker compose commands.
 
 Claude Code (Engineer) implements this from the spec. For this to go fast:
 
-1. Architect writes the complete foundation chunk from this note
-2. Chunk creates directory structure, users, groups, permissions, SMB config, Compose scaffolding — all idempotent
-3. Claude Code runs as `engineer` user or inside a Docker devcontainer scoped to /srv/ and code repos
-4. Engineer never touches /home/guide/ or .openclaw/ config directly
+1. Engineer reads this note and the bootstrap prompt in full before starting
+2. Bootstrap prompt creates directory structure, users, groups, permissions, Tailscale, SMB config, runtimes — all idempotent
+3. Claude Code runs as `engineer` system user (not devcontainer — revisit later)
+4. Engineer never touches /srv/openclaw/config/ directly — config is managed via guide-core
 5. Security hardening (CHUNK-07-ubuntu) runs after foundation is stable
-6. Services deploy on top in sequence
+6. Services deploy on top in sequence via Docker Compose
 
 **Claude Code scoping:**
-- Read/write: /srv/compose/, /srv/guide/vaults/, code repos (guide-core, guide-engine)
-- Read-only: /srv/guide/teams/, /srv/guide/outputs/
-- No access: /home/guide/.openclaw/, /srv/db/ (databases managed separately), /srv/backup/
+- Read/write: /srv/compose/, /srv/guide-vaults/, /srv/guide-core/, /srv/guide-engine/
+- Read-only: /srv/guide-build/ (Architect vault — pull only, never push from this machine)
+- No access: /srv/openclaw/config/, /srv/db/, /srv/backup/
 
 ---
 
@@ -235,38 +218,39 @@ The guide-build vault (specs, prompts, chunks, architecture docs) is an Obsidian
 
 **Decision:** guide-build is a Git repository, not an Obsidian Sync vault.
 
-- **Initial location on Huginn:** `/home/gareth/guide-build/` — cloned here first so Engineer (Claude Code) can read and work from it immediately with no permissions complexity
-- **Final location:** `/srv/guide-build/` — moved here once the foundation build is complete and `/srv/` permissions are stable
-- Synced via: Git (private GitHub repo)
+- **Location:** `/srv/guide-build/` — cloned directly to its permanent location during foundation build
+- Synced via: Git (private GitHub repo — `github.com/gkwilderness/guide-build`)
 - Source of truth: Gareth's Mac (push from Mac after edits)
-- To get updates on the server: `git pull` in the current location
-- Obsidian on the Mac continues to read/write the vault normally — it just also happens to be a git repo
-- Agents and Claude Code on the server read from whichever location is current; no Obsidian app needed server-side
+- To get updates on the server: `git -C /srv/guide-build pull`
+- Obsidian on the Mac continues to read/write the vault normally
+- Agents and Claude Code on the server read from /srv/guide-build/; no Obsidian app needed server-side
 
-**Migration step** (post-foundation): `sudo mv /home/gareth/guide-build /srv/guide-build && sudo chown -R gareth:guide-data /srv/guide-build`
-
-**Prerequisite before Linux build starts:** guide-build needs a GitHub remote created and the repo initialised. This is Gareth's action.
+**Prerequisite before Linux build starts:** guide-build GitHub repo must exist and be initialised. ✓ Done 2026-05-18.
 
 ---
 
-## Open Questions — Architect Decisions Needed
+## Decisions Log
 
-Before this spec is handed to the Engineer, the following must be decided:
+All foundation decisions resolved 2026-05-18:
 
-1. **Analytics DB**: DuckDB or ClickHouse?
-2. **OneDrive client**: abraunegg/onedrive confirmed? Sync mode: two-way or download-only?
-3. **Backup offsite**: Backblaze B2 account — set up before or after foundation build?
-4. **SMB users**: Anyone other than Gareth getting SMB access at launch?
-5. **Engineer user vs container**: Is `engineer` a system user, or does Claude Code run inside a Docker devcontainer?
-6. **Landing pages**: Static (nginx) or dynamic (needs a runtime — Node, Python)?
-7. **Huginn**: Is this Huginn the automation software (requires Postgres + Redis), or just the machine name?
-8. **Paperclip**: What does Paperclip need from the filesystem? Does it have a database requirement?
-9. **Monitoring**: Grafana + Prometheus, or something lighter? Decide before build so monitoring is included in foundation.
+| Decision | Outcome |
+|----------|---------|
+| Machine hostname | `guide` |
+| Analytics DB | Deferred — DuckDB vs ClickHouse TBD after foundation stable |
+| OneDrive sync mode | Two-way (abraunegg/onedrive) |
+| SMB users at launch | Gareth only |
+| Engineer: user vs container | System user (`engineer`) for now — revisit for devcontainer later |
+| Monitoring | Deferred — htop only until services are stable |
+| Backblaze B2 offsite backup | Deferred — set up after foundation stable |
+| Huginn | Both: machine was previously called Huginn (now renamed Guide), and Huginn the automation software is a service running on it |
+| Paperclip requirements | PostgreSQL, Node 20+, git worktrees |
+| Landing pages | Deferred |
 
 ---
 
 ## Related Files
 
+- `Prompts/PROMPT_Engineer-guide-foundation-bootstrap.md` — executable bootstrap prompt for the Engineer
 - `Notes/2026-05-15 Z8 Security Best Practice.md` — security hardening reference, read alongside CHUNK-07
 - `BUILD/DEV-CHUNKS/CHUNK-07-security-hardening.md` — macOS version, preserve and rewrite for Ubuntu
 - `INFRA.md` — infrastructure reference (update after foundation build)
@@ -275,4 +259,4 @@ Before this spec is handed to the Engineer, the following must be decided:
 
 ## Status
 
-Draft. Architect to review, answer open questions, and produce foundation chunk before Engineer session begins.
+**Approved 2026-05-18.** All decisions resolved. Bootstrap prompt written. Ready for Engineer.
