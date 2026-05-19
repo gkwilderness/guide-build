@@ -25,6 +25,11 @@ TimeoutStopSec=120
 ExecStartPre=/usr/bin/docker compose -f /srv/compose/openclaw.yml build
 ExecStart=/usr/bin/docker compose -f /srv/compose/openclaw.yml up -d
 
+# Normalize permissions after openclaw initialises (it resets /srv/openclaw to 700 on startup).
+# 30s delay gives openclaw time to finish writing its state before we chmod.
+# Note: this blocks `systemctl start` for 30s — acceptable for a boot service.
+ExecStartPost=/bin/bash -c 'sleep 30 && /srv/guide-core/scripts/fix-perms.sh'
+
 # Reload command: re-runs `up -d` which docker compose treats as a noop if config unchanged,
 # or a graceful recreate if openclaw.yml changed.
 ExecReload=/usr/bin/docker compose -f /srv/compose/openclaw.yml up -d
