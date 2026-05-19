@@ -15,9 +15,9 @@ status: pending
 
 ---
 
-### ⚠️ Path-Stale on Z8 — Adapt Before Execution
+### Status — Paths Updated 2026-05-19
 
-**Status (2026-05-18):** This chunk was written for the Mac Mini (`~/.openclaw/`, `~/guide-core/`). On Z8, all paths are `/srv/openclaw/` and `/srv/guide-core/`. The host crontab migration from Mac Mini to Z8 (with path rewrites) is handled inside `CHUNK-07c-ubuntu-migration.md` Task E5. The remaining CHUNK-08 work (cron health checks, prompt files convention, schedule design) is still relevant — adapt the paths before executing on Z8.
+**Status (2026-05-19):** CHUNK-07c is complete. All paths in this chunk have been updated to Z8 equivalents (`/srv/openclaw/`, `/srv/guide-core/`). The host crontab migration (Task E5 inside CHUNK-07c) is done. The remaining CHUNK-08 work — cron health checks, prompt files convention, and schedule design — is still pending and can now be executed on Z8.
 
 ---
 
@@ -27,7 +27,7 @@ The following were applied in ad-hoc sessions before CHUNK-08 was executed. The 
 
 | Item | What | Applied |
 |------|------|---------|
-| `~/scripts/openclaw-backup.sh` | Daily 4am crontab backup of `~/.openclaw/` to `~/openclaw-backups/`, 30-day retention | 2026-04-20 |
+| `/srv/guide-core/scripts/openclaw-backup.sh` | Daily 4am crontab backup of `/srv/openclaw/` to `/srv/backup/`, 30-day retention | Migrated to Z8 in CHUNK-07c |
 | `session.maintenance` in `openclaw.json` | `mode: enforce`, `pruneDays: 7`, `resetArchiveRetention: 7d` | 2026-04-20 |
 | `cron.sessionRetention` in `openclaw.json` | `7d` (was `24h`) | 2026-04-20 |
 
@@ -52,14 +52,14 @@ Configures the cron schedule, health checks, and operational monitoring. Establi
 
 ### Deliverables
 
-1. Cron prompt files written and committed in `~/guide-core/prompts/cron/` (one file per job)
+1. Cron prompt files written and committed in `/srv/guide-core/prompts/cron/` (one file per job)
 2. 7 OpenClaw cron jobs registered — each pointing to its prompt file, not inline content
 3. All cron jobs use Haiku model (cost-efficient)
 4. All cron jobs use isolated sessions (no context bleed)
 5. Schedule staggered: data fetch at 06:00, briefs from 07:30, ≥5 min gap between heavy jobs
 6. Health check job: silent if green, reports to #guide-ops if issues
-7. Workspace git sync: `~/.openclaw/workspace/` is a git repo, syncing to `guide-workspace` on a crontab schedule
-8. Cron health monitoring script at `~/guide-core/scripts/cron-health.sh`
+7. Workspace git sync: `/srv/openclaw/workspaces/main/` is a git repo, syncing to `guide-workspace` on a crontab schedule
+8. Cron health monitoring script at `/srv/guide-core/scripts/cron-health.sh`
 9. Operational runbook for cron management
 
 ---
@@ -68,24 +68,24 @@ Configures the cron schedule, health checks, and operational monitoring. Establi
 
 #### Task 1 — Create cron prompt files
 
-All cron prompts live as versioned files in `~/guide-core/prompts/cron/`. Each job's `--message` is a single file-reference instruction. The `guide-core` Docker mount is `:ro` — Guide can read but not modify prompt files. No gateway restart needed when editing a prompt.
+All cron prompts live as versioned files in `/srv/guide-core/prompts/cron/`. Each job's `--message` is a single file-reference instruction. The `guide-core` Docker mount is `:ro` — Guide can read but not modify prompt files. No gateway restart needed when editing a prompt.
 
-**Reference:** `~/jarvis-core/prompts/cron/` has 19 live prompts — fork content from there.
+**Reference:** The previous jarvis system had 19 live prompts — fork content from `~/jarvis-core/prompts/cron/` on Gareth's Mac if needed.
 
 ```bash
-mkdir -p ~/guide-core/prompts/cron
+mkdir -p /srv/guide-core/prompts/cron
 ```
 
 Write each file:
 
 ```bash
-cat > ~/guide-core/prompts/cron/etl-daily-refresh.md << 'EOF'
+cat > /srv/guide-core/prompts/cron/etl-daily-refresh.md << 'EOF'
 # ETL Daily Refresh
 
 Trigger daily ETL refresh for all connected data sources. Check each source connector for last-run status. Log results to the pipeline health log. Report only on failure — if all sources refreshed successfully, stay silent.
 EOF
 
-cat > ~/guide-core/prompts/cron/performance-morning-brief.md << 'EOF'
+cat > /srv/guide-core/prompts/cron/performance-morning-brief.md << 'EOF'
 # Performance Morning Brief
 
 Generate a morning performance brief for the Guide team leads group.
@@ -98,7 +98,7 @@ Check data freshness from Pipeline agent outputs. Summarise:
 Format for Telegram. Keep under 300 words. Direct, no filler.
 EOF
 
-cat > ~/guide-core/prompts/cron/gareth-strategic-brief.md << 'EOF'
+cat > /srv/guide-core/prompts/cron/gareth-strategic-brief.md << 'EOF'
 # Gareth Strategic Brief
 
 Generate a strategic morning brief for Gareth (Telegram DM).
@@ -112,7 +112,7 @@ Include:
 Format for Telegram DM. Keep under 400 words. Lead with the most important item.
 EOF
 
-cat > ~/guide-core/prompts/cron/pipeline-health-check.md << 'EOF'
+cat > /srv/guide-core/prompts/cron/pipeline-health-check.md << 'EOF'
 # Pipeline Health Check
 
 Run a pipeline health check across all connected data sources.
@@ -126,7 +126,7 @@ Verify:
 Report ONLY if issues found. If all green, stay silent. Report to #guide-ops.
 EOF
 
-cat > ~/guide-core/prompts/cron/midday-anomaly-scan.md << 'EOF'
+cat > /srv/guide-core/prompts/cron/midday-anomaly-scan.md << 'EOF'
 # Midday Anomaly Scan
 
 Run a midday anomaly scan across all connected data sources.
@@ -140,7 +140,7 @@ Check for:
 Report ONLY if anomalies found. If clean, stay silent. Report to team leads group.
 EOF
 
-cat > ~/guide-core/prompts/cron/weekly-performance-summary.md << 'EOF'
+cat > /srv/guide-core/prompts/cron/weekly-performance-summary.md << 'EOF'
 # Weekly Performance Summary
 
 Generate a weekly performance summary for the executive team.
@@ -155,7 +155,7 @@ Include:
 Use capital allocation language. Format for WhatsApp. Keep under 500 words.
 EOF
 
-cat > ~/guide-core/prompts/cron/monthly-board-digest.md << 'EOF'
+cat > /srv/guide-core/prompts/cron/monthly-board-digest.md << 'EOF'
 # Monthly Board Digest
 
 Generate a monthly board digest for Gareth's review before executive distribution.
@@ -174,7 +174,7 @@ EOF
 Commit before registering jobs:
 
 ```bash
-cd ~/guide-core && git add prompts/ && git commit -m "feat(chunk-08): add cron prompt files" && git push
+cd /srv/guide-core && git add prompts/ && git commit -m "feat(chunk-08): add cron prompt files" && git push
 ```
 
 ---
@@ -301,7 +301,7 @@ The workspace accumulates irreplaceable state: MEMORY.md, signal files, session 
 **Step 1 — Confirm workspace is a git repo**
 
 ```bash
-cd ~/.openclaw/workspace
+cd /srv/openclaw/workspaces/main
 git status 2>/dev/null || git init
 git remote -v 2>/dev/null | grep -q guide-workspace \
   || git remote add origin git@github.com:gkwilderness/guide-workspace.git
@@ -311,7 +311,7 @@ git fetch origin 2>/dev/null && git branch --set-upstream-to=origin/main main 2>
 **Step 2 — Write sync script**
 
 ```bash
-cat > ~/guide-core/scripts/workspace-sync.sh << 'EOF'
+cat > /srv/guide-core/scripts/workspace-sync.sh << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -330,7 +330,7 @@ git commit -m "chore: workspace sync $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 git push
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] workspace synced" >> "$LOG"
 EOF
-chmod +x ~/guide-core/scripts/workspace-sync.sh
+chmod +x /srv/guide-core/scripts/workspace-sync.sh
 ```
 
 **Step 3 — Register with crontab**
@@ -344,9 +344,9 @@ crontab -l | grep workspace-sync && echo "✓ workspace-sync cron registered"
 **Step 4 — Test manually**
 
 ```bash
-cd ~/.openclaw/workspace && touch .sync-test && bash ~/guide-core/scripts/workspace-sync.sh
+cd /srv/openclaw/workspaces/main && touch .sync-test && bash /srv/guide-core/scripts/workspace-sync.sh
 git log --oneline -3
-rm .sync-test && bash ~/guide-core/scripts/workspace-sync.sh
+rm .sync-test && bash /srv/guide-core/scripts/workspace-sync.sh
 echo "✓ workspace-sync tested"
 ```
 
@@ -359,7 +359,7 @@ echo "✓ workspace-sync tested"
 OpenClaw silently disables jobs after consecutive errors — no alert fires by default. This script checks for disabled or erroring jobs and alerts to `#guide-ops`.
 
 ```bash
-cat > ~/guide-core/scripts/cron-health.sh << 'EOF'
+cat > /srv/guide-core/scripts/cron-health.sh << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -402,7 +402,7 @@ else
   echo "✓ All cron jobs healthy"
 fi
 EOF
-chmod +x ~/guide-core/scripts/cron-health.sh
+chmod +x /srv/guide-core/scripts/cron-health.sh
 ```
 
 Register as a daily crontab check (shell job, no LLM needed):
@@ -414,21 +414,21 @@ crontab -l | grep cron-health && echo "✓ cron-health check registered"
 
 Test it:
 ```bash
-bash ~/guide-core/scripts/cron-health.sh
+bash /srv/guide-core/scripts/cron-health.sh
 ```
 
 ---
 
 #### Task 7 — Document cron management
 
-Write to `~/guide-core/docs/cron-runbook.md`:
+Write to `/srv/guide-core/docs/cron-runbook.md`:
 - How to list jobs: `openclaw cron list`
 - How to run manually: `openclaw cron run --name <name>`
 - How to pause: `openclaw cron pause --name <name>`
 - How to view history: `openclaw cron history --name <name>`
 - How to delete: `openclaw cron delete --name <name>`
-- How to edit a prompt: edit `~/guide-core/prompts/cron/<name>.md`, commit, push — no restart needed
-- How to check job health: `bash ~/guide-core/scripts/cron-health.sh`
+- How to edit a prompt: edit `/srv/guide-core/prompts/cron/<name>.md`, commit, push — no restart needed
+- How to check job health: `bash /srv/guide-core/scripts/cron-health.sh`
 
 ---
 
@@ -454,7 +454,7 @@ for name in etl-daily-refresh performance-morning-brief gareth-strategic-brief p
   [[ -f "$HOME/guide-core/prompts/cron/$name.md" ]] && echo "✓ prompt: $name" || echo "✗ missing: $name"
 done
 # Run health check
-bash ~/guide-core/scripts/cron-health.sh
+bash /srv/guide-core/scripts/cron-health.sh
 ```
 
 ---
@@ -473,7 +473,7 @@ done
 ### Git Commit
 
 ```bash
-cd ~/guide-core && git add -A && git commit -m "feat(chunk-08): cron schedule and operational monitoring"
+cd /srv/guide-core && git add -A && git commit -m "feat(chunk-08): cron schedule and operational monitoring"
 ```
 
 ---
@@ -481,7 +481,7 @@ cd ~/guide-core && git add -A && git commit -m "feat(chunk-08): cron schedule an
 ### Handoff to Phase 1
 
 Phase 0 complete. Guide is:
-- Running on the Mac Mini M2 Pro
+- Running on guide-server (HP Z8 G4, Ubuntu 24.04)
 - Tailscale: planned, not yet configured (backlog item)
 - Responding via Telegram + Slack
 - Security hardened (CHUNK-07)

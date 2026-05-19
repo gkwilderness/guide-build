@@ -22,7 +22,7 @@ updated: 2026-04-20
 | Role | Guide runtime, data pipeline host, cron executor, local LLM inference |
 | File access | /srv/guide-build (cloned), /srv/guide-core, /srv/guide-engine, /srv/onedrive (OneDrive — pending) |
 | Network | Tailscale live — `guide-server` (100.80.44.14) |
-| Status | **Foundation complete 2026-05-18. OpenClaw migration from Mac Mini pending. CHUNK-07 hardening pending.** |
+| Status | **Live — CHUNK-07c complete 2026-05-19. OpenClaw running in Docker, all services green. 7-day soak ends ~2026-05-25.** |
 
 ### Local LLM Capability
 
@@ -54,8 +54,8 @@ The Guide machine has full read access to everything the Engineer Claude needs:
 | Machine | Role | OS | Tailscale IP | Status |
 |---------|------|-----|-------------|--------|
 | **Mac** | Gareth's laptop (Architect) | macOS | Active | Live |
-| **Mac Mini M2 Pro** | OpenClaw runtime (interim) | macOS | 100.72.42.1 | Live — pending migration to guide-server |
-| **guide-server (HP Z8 G4)** | Guide runtime (target) | Ubuntu 24.04 | 100.80.44.14 | Foundation complete — OpenClaw migration pending |
+| **Mac Mini M2 Pro** | Hot rollback (soak period) | macOS | 100.72.42.1 | Standby — decommission after soak ends ~2026-05-25 |
+| **guide-server (HP Z8 G4)** | Guide runtime | Ubuntu 24.04 | 100.80.44.14 | **Live** — CHUNK-07c complete 2026-05-19 |
 | **Sentinel** | Infrastructure monitoring | TBC | TBC | Planned |
 
 All machines connected via Tailscale. No public internet exposure.
@@ -64,8 +64,8 @@ All machines connected via Tailscale. No public internet exposure.
 
 | Service | Port | Machine | Status |
 |---------|------|---------|--------|
-| OpenClaw gateway | 18789 | Mac Mini (interim) | **Live on Mac Mini** — migration to guide-server pending |
-| OpenClaw Studio / TUI | — | Mac Mini (interim) | **Live on Mac Mini** — migration to guide-server pending |
+| OpenClaw gateway | 18789 | guide-server | **Live** — Docker + systemd (`openclaw.service`) |
+| OpenClaw Studio / TUI | — | guide-server | **Live** — Docker container |
 | ETL API (Python) | 5010 | guide-server | Not started |
 | Docker Engine | — | guide-server | **Live** (Docker 29.5.0) |
 
@@ -77,16 +77,16 @@ Production directory structure for Guide. See [[personal-instance-architecture]]
 
 | Directory | Purpose | Write access |
 |-----------|---------|-------------|
-| `/srv/guide-vaults/private/` | Retained from Mac Mini build — do not remove until confirmed safe | guide-data group |
+| `/srv/guide-vaults/private/` | Retained — do not remove until confirmed safe | guide-data group |
 | `/srv/guide-vaults/personal/` | Per-person agent workspaces (nick/, hadley/) | guide-data group |
 | `/srv/guide-vaults/shared/` | Cross-agent shared data | guide-data group |
-| `/srv/guide-vaults/teams/` | Team vaults — SMB share `guide-teams` | guide-data group; digital/ symlink to OneDrive deferred |
+| `/srv/guide-vaults/teams/` | Team vaults — SMB share `guide-teams` | guide-data group; `digital/` live via Obsidian Sync (2026-05-19) |
 | `/srv/guide-outputs/` | Agent outputs — append-only | SMB share `guide-outputs` |
 | `/srv/guide-data/` | Pipeline data — restricted | SMB share `guide-data`, gareth only |
-| `/srv/openclaw/workspace/` | OpenClaw workspace root | guide-data group |
-| `/srv/openclaw/config/` | OpenClaw config | guide-data group — managed via guide-core |
+| `/srv/openclaw/workspaces/` | OpenClaw workspaces (main + all agents) | guide-data group |
+| `/srv/openclaw/openclaw.json` | Live OpenClaw config | guide:guide-data 640 |
 
-**Status:** Directories created — foundation complete 2026-05-18. OpenClaw migration to populate workspace/config pending.
+**Status:** All directories live — CHUNK-07c complete 2026-05-19.
 
 ## Access Model
 
@@ -116,8 +116,8 @@ Production directory structure for Guide. See [[personal-instance-architecture]]
 
 | What | Script | Schedule | Destination | Retention |
 |------|--------|----------|-------------|-----------|
-| `~/.openclaw/` on Mac Mini | `~/guide-core/scripts/openclaw-backup.sh` | Daily 04:00 (crontab on Mac Mini) | `~/openclaw-backups/openclaw-YYYYMMDD-HHMM.tar.gz` | 30 days |
-| `/srv/` on guide-server | restic | Not yet configured — CHUNK-07 | TBD (local + Backblaze B2) | 7 daily, 4 weekly, 12 monthly |
+| `/srv/openclaw/` on guide-server | `/srv/guide-core/scripts/openclaw-backup.sh` | Daily 04:00 (gareth crontab) | `/srv/backup/openclaw-YYYYMMDD-HHMM.tar.gz` | 30 days |
+| `/srv/` on guide-server | restic | Not yet configured | TBD (local + Backblaze B2) | 7 daily, 4 weekly, 12 monthly |
 
 ## Slack DM Policy
 
@@ -177,4 +177,4 @@ Applied 2026-05-01:
 
 **Action item:** When the Engineer next has a session, run `openclaw config schema` and check whether `channels.slack.streaming.preview.toolProgress` exists. If it does, apply the same `false` setting. Slack socket mode may handle streaming differently — it's less likely to leak progress messages since Slack doesn't do live streaming the same way Telegram does, but verify.
 
-*Updated: 2026-05-01*
+*Updated: 2026-05-19 — CHUNK-07c complete, all services live on Z8*

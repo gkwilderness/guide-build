@@ -65,10 +65,10 @@ The order in which people come online and Guide becomes part of their daily rout
 | CHUNK-05 | Guide Agent | ✅ Complete | Guide identity files (SOUL, AGENTS, USER, TOOLS), workspace committed to git |
 | CHUNK-06 | Access Control | ✅ Complete | 4-tier access live. Telegram: Gareth + 4 operators (Danny, Richard, Laura, Matt) + group. Slack: socket mode, bi-directional (4 channels + `#guide-data-inbox` inbound). Laura added to operator DMs. WhatsApp deferred (SIM this weekend). Ashleigh joins 2026-05-11. |
 | CHUNK-07 | Security & Hardening (macOS) | **Superseded by CHUNK-07c** for Z8 deployment | macOS-era spec — preserved for reference. Ubuntu hardening (UFW, fail2ban, SSH key-only, workspace perms) folded into CHUNK-07c. |
-| CHUNK-07a | Google Integration | **Spec written — not yet executed** | `gog` CLI, OAuth for work Google account, Calendar + Gmail access, TOOLS.md updated. Needs `~/guide-core/` → `/srv/guide-core/` path adaptation. |
+| CHUNK-07a | Google Integration | **Spec written — not yet executed** | `gog` CLI, OAuth for work Google account, Calendar + Gmail access, TOOLS.md updated. Paths updated for Z8 — ready to execute (verify gog Linux support first). |
 | CHUNK-07b | Bare Metal Migration (macOS) | ✅ Complete — **direction reversed for Z8** | OpenClaw migrated from Docker to native macOS launchd on Mac Mini. Z8 reverses this back to Docker (Linux native, no VM layer) — see ADR-023 and CHUNK-07c. |
-| CHUNK-07c | Mac Mini → Z8 Ubuntu Migration | **Pending — current focus** | OpenClaw to Docker on Ubuntu + systemd. `/srv/` canonical paths. Channel-disabled cutover (ADR-024). Migration + Ubuntu hardening combined. |
-| CHUNK-08 | Cron & Ops | Partial — paths need `/srv/` rewrite for Z8 | Several cron jobs running on Mac Mini. Host crontab migration to Z8 with `/srv/` paths is handled inside CHUNK-07c Task E5. Full spec re-execution deferred to post-migration revisit. |
+| CHUNK-07c | Mac Mini → Z8 Ubuntu Migration | ✅ Complete | OpenClaw to Docker on Ubuntu + systemd. `/srv/` canonical paths. Channel-disabled cutover (ADR-024). Migration + Ubuntu hardening combined. |
+| CHUNK-08 | Cron & Ops | Partial — host crontab migrated in CHUNK-07c, remaining work (health checks, prompt files, schedule design) pending | Paths updated to Z8. Ready to execute remaining tasks. |
 
 ---
 
@@ -199,7 +199,7 @@ All chunks follow `BUILD/DEV-CHUNKS/_CONVENTIONS.md`.
 5. **Hermes as parallel pilot** — Not a migration. Analyst Agent runs alongside OpenClaw for 6 weeks. Decision gate at CHUNK-23
 6. **Data integrations late** — Channel agents and governance layer deliver value before any API is connected
 7. **Intelligence layer last** — Apex and CapitalCore need live data (Phase 5) to function. Don't build the engine before the fuel line
-8. **Ubuntu + Docker target** — new machine arriving week of 2026-05-12 runs Ubuntu with Docker. CHUNK-07 hardening spec must be re-written for this environment (ufw not macOS firewall, systemd/Docker Compose not launchd, Docker bind mounts with :ro for vault isolation). macOS bare metal is temporary.
+8. **Ubuntu + Docker** — guide-server runs Ubuntu 24.04 with Docker Engine. CHUNK-07c complete 2026-05-19. All paths are `/srv/`. Service management is systemd.
 
 ---
 

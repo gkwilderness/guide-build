@@ -19,7 +19,7 @@ Guide is the AI chief of staff for Wilderness Safaris Group — serving 15+ peop
 
 | Component | Detail |
 |-----------|--------|
-| **Runtime** | OpenClaw on guide-server (HP Z8 G4, Ubuntu 24.04). Currently running on Mac Mini M2 Pro — migration in progress. |
+| **Runtime** | OpenClaw on guide-server (HP Z8 G4, Ubuntu 24.04). Docker + systemd. CHUNK-07c complete 2026-05-19. |
 | **LLM** | Claude API (Sonnet for interactive, Haiku for cron) |
 | **Interface** | Telegram (leaders), WhatsApp (executives), Slack (team) |
 | **Vault access** | OneDrive on Guide machine + this guide-build vault (synced) |
@@ -79,7 +79,7 @@ guide-build/
 |------|---------|--------|----------|
 | **Architect** | Mac (Gareth's laptop) | Claude Code in guide-build vault | Designs specs, writes chunks, manages docs, coordinates build |
 | **Engineer** | guide-server (HP Z8 G4, Ubuntu 24.04) | Claude Code on bare metal | Executes chunks, writes and runs code, commits to guide-core |
-| **Vault** | Mac Mini M2 Pro (pending migration to guide-server) | OpenClaw main agent | Live ops — serves team via Telegram/Slack, delivers briefs, observes channels |
+| **Vault** | guide-server (HP Z8 G4) | OpenClaw main agent | Live ops — serves team via Telegram/Slack, delivers briefs, observes channels |
 
 **How they interact:**
 - **Architect → Engineer:** CHUNK spec committed to vault. Engineer reads and executes directly.
@@ -108,7 +108,7 @@ Brand-specific agents are generated from templates using the agent factory (`gui
 `Specs/guide-roster.json` is the single source of truth for all personal instances, team vaults, channel agents, and API keys. It includes deployment gates (boolean checklists) and status tracking.
 
 - **Gareth maintains it** in this vault
-- **Engineer copies it** to `~/guide-core/agent-factory/roster.json` on the Guide machine
+- **Engineer copies it** to `/srv/guide-core/agent-factory/roster.json` on the Guide machine
 - **`generate.sh personal {name}`** reads person config directly from roster.json
 - **Before any personal instance work**, read the person's entry in roster.json — check their gates and status
 
@@ -116,15 +116,15 @@ Key sections: `persons` (identity, vaults, gates), `teamVaults` (source, gates),
 
 ## Build Status
 
-Guide is **live — Mac Mini running, Z8 foundation complete, CHUNK-07c migration ready to execute.**
+Guide is **live on guide-server — CHUNK-07c complete, 7-day soak running.**
 
-- Guide machine: HP Z8 G4 (guide-server, Ubuntu 24.04) — foundation complete 2026-05-18
-- OpenClaw: still running on Mac Mini M2 Pro — CHUNK-07c migrates it to guide-server (Docker + systemd)
-- Tailscale: guide-server live at 100.80.44.14. Mac Mini still on tailnet (100.72.42.1) — stays online through CHUNK-07c soak as hot rollback
+- Guide machine: HP Z8 G4 (guide-server, Ubuntu 24.04) — OpenClaw in Docker, systemd-managed, all green
+- Tailscale: guide-server at 100.80.44.14. Mac Mini (100.72.42.1) stays on tailnet as hot rollback until soak ends ~2026-05-25
 - Telegram: @WildernessGuideBot + @WildernessGuideNickBot (Nick live). @GuideHadleyBot pending.
 - Slack: Socket mode, bi-directional — DMs + all channels live
 - WhatsApp: Deferred
-- Phase 0 remaining: **CHUNK-07c migration (current)**, CHUNK-07a Google integration, post-migration revisit of CHUNK-08
+- OneDrive on guide-server: not yet configured — `/srv/guide-vaults/teams/` and `/srv/guide-data/` are empty stubs
+- Phase 0 remaining: CHUNK-07a (Google integration), CHUNK-07d (Tailscale `allowedOrigins` cleanup), post-migration revisit of CHUNK-08
 - Phase 1 remaining: CHUNK-11 Paperclip, CHUNK-15 Keith instance, CHUNK-16 Hadley instance
 
 ## Working With This Project
@@ -147,7 +147,7 @@ Do not write these to the project root, `__META/`, or Notes/. `Logs/` is the sin
 ## Session Start — Check Signals
 
 At the start of every Architect session, read:
-- `~/.openclaw/workspace/signals/→architect.md`
+- `/srv/openclaw/workspaces/main/signals/→architect.md`
 
 Surface any open items to Gareth before proceeding. These are messages from the Vault that need design or spec work.
 
@@ -171,4 +171,4 @@ Check the schema for the exact field name and its location in the hierarchy. If 
 
 ---
 
-*Updated: 2026-05-18 — Z8 foundation complete, migration pending*
+*Updated: 2026-05-19 — CHUNK-07c complete, Guide live on Z8*

@@ -10,22 +10,8 @@ status: active
 # READ-ONLY: Referenced by all CHUNK files. Never duplicated. Never edited during a build session.
 # Source of truth for all constants, paths, ports, and naming rules.
 #
-# Guide conventions.
-#
-# ⚠️  TARGET HOST (2026-05-18): HP Z8 G4, Ubuntu 24.04, Docker + systemd, /srv/ canonical paths.
-#     Sections below that still describe macOS / Mac Mini / launchd / Homebrew / ~/ home-relative
-#     paths are HISTORICAL — they describe the interim Mac Mini deployment. For Z8 work, the
-#     authoritative sources of truth are:
-#       - INFRA.md §"OS Conventions"  (Ubuntu, systemd, apt, Docker Engine)
-#       - CHUNK-07c-ubuntu-migration.md  (canonical /srv/ paths and Docker layout)
-#       - DECISIONS.md ADR-023  (Docker on Z8 — reverses ADR-021 for the Linux host)
-#       - Specs/guide-filesystem-layout.md  (/srv/openclaw/ tree)
-#     Full rewrite of this file to /srv/ paths is scheduled post-CHUNK-07c. Until then,
-#     mentally substitute:  /Users/gareth/   → /home/gareth/   (user home)
-#                           ~/guide-core/    → /srv/guide-core/   (and same for guide-engine, guide-build)
-#                           ~/.openclaw/     → /srv/openclaw/
-#                           launchd plist    → systemd unit
-#                           Homebrew         → apt
+# ✅ PATHS UPDATED 2026-05-19 — CHUNK-07c complete. Guide runs on HP Z8 G4 (Ubuntu 24.04),
+#    Docker + systemd, /srv/ canonical paths. All paths below reflect the live Z8 state.
 
 ---
 
@@ -44,7 +30,7 @@ Three Claude instances operate the Guide system. As Engineer, know where you fit
 - Build what the Vault operates. Restart the gateway after workspace or config changes.
 - Do not modify vault spec files — flag issues to Gareth for the Architect to resolve.
 - BUILD.md chunk numbering is canonical (ADR-012). Trust it over git commit labels or Vault-reported numbers.
-- **Check signals at session start:** read `~/.openclaw/workspace/signals/→engineer.md`. Surface any open items to Gareth before starting chunk work.
+- **Check signals at session start:** read `/srv/openclaw/workspaces/main/signals/→engineer.md`. Surface any open items to Gareth before starting chunk work.
 - **Run CLI orientation before CHUNK work:** OpenClaw is moving fast — specs are written from docs research, not tested execution. Flags may differ from what was specced. Before starting any chunk, run:
   ```bash
   openclaw --help
@@ -59,13 +45,12 @@ Three Claude instances operate the Guide system. As Engineer, know where you fit
 ## System Assumptions
 
 Every chunk assumes:
-1. Guide is a **Mac Mini M2 Pro** running macOS with 32GB RAM and 1TB storage
-2. Guide uses **launchd** (not systemd) for service management
-3. Guide has **OneDrive** running locally for Wilderness file access
-4. Guide is on the home LAN; Tailscale is planned but not yet configured
-5. This is a **greenfield build** — no live system to protect
-6. The **guide-build vault** is on the Guide machine (synced) — Engineer Claude can read all specs, project briefs, agent specs, and CLAUDE.md files directly
-7. The Engineer Claude has **full context** — it reads the vault and executes chunks. No need for Gareth to copy specs into sessions.
+1. Guide is an **HP Z8 G4** running Ubuntu 24.04 LTS with 128GB RAM, 1TB NVMe + 4TB HDD
+2. Guide uses **systemd** (not launchd) for service management. OpenClaw runs as `openclaw.service` via Docker Compose
+3. Guide has **Tailscale** live — `guide-server` at 100.80.44.14
+4. **OneDrive** is not yet configured on guide-server — `/srv/guide-vaults/teams/` and `/srv/guide-data/` are empty stubs pending OneDrive setup
+5. The **guide-build vault** is at `/srv/guide-build/` — Engineer Claude can read all specs, project briefs, agent specs, and CLAUDE.md files directly
+6. The Engineer Claude has **full context** — it reads the vault and executes chunks. No need for Gareth to copy specs into sessions.
 
 ---
 
@@ -73,31 +58,31 @@ Every chunk assumes:
 
 | Name | Path |
 |------|------|
-| OpenClaw config dir | `~/.openclaw/` |
-| OpenClaw config file | `~/.openclaw/openclaw.json` |
-| Main agent workspace | `~/.openclaw/workspace/` |
-| Personal agent workspaces | `~/.openclaw/workspace-personal-{name}/` |
-| Channel agent workspaces | `~/.openclaw/workspace-{role}/` |
-| Agent factory | `~/guide-core/agent-factory/` |
-| Cron jobs | `~/.openclaw/cron/jobs.json` |
-| Cron run history | `~/.openclaw/cron/runs/` |
-| Session memory | `~/.openclaw/memory/main.sqlite` |
-| Device identity | `~/.openclaw/identity/` |
-| Credentials | `~/.openclaw/credentials/` |
-| Personal vaults | `~/guide-vault/personal/{name}/` |
-| Team vaults | `~/guide-vault/teams/{team}/` |
-| Shared data | `~/guide-vault/shared/{category}/` |
-| Agent outputs | `~/guide-outputs/` |
-| Digital team vault | `~/Obsidian/Wilderness-Guide/` (symlinked from `~/guide-vault/teams/digital/`) |
-| OneDrive root | `~/Library/CloudStorage/OneDrive-Wilderness/` |
-| Vault root | `$VAULT_PATH` (set in ~/.zshrc) |
-| Guide runtime repo | `~/guide-core/` |
-| Guide pipeline scripts repo | `~/guide-engine/` |
-| Guide build/specs repo | `~/guide-build/` |
-| Guide data outputs | `~/guide-data/` — markdown exports written by guide-engine scripts, read by Guide agents. Not a repo — an output directory. (Not yet populated.) |
-| launchd agents | `~/Library/LaunchAgents/` |
-| OpenClaw service label | `ai.openclaw.gateway` (installed by `openclaw gateway install`) |
-| OpenClaw logs | `~/.openclaw/logs/gateway.log`, `/tmp/openclaw/openclaw-YYYY-MM-DD.log` |
+| OpenClaw state dir | `/srv/openclaw/` |
+| OpenClaw config file | `/srv/openclaw/openclaw.json` |
+| Main agent workspace | `/srv/openclaw/workspaces/main/` |
+| Personal agent workspaces | `/srv/openclaw/workspaces/personal-{name}/` |
+| Channel agent workspaces | `/srv/openclaw/workspaces/{role}/` |
+| Agent factory | `/srv/guide-core/agent-factory/` |
+| Cron config | `/srv/openclaw/openclaw.json` (`cron` key — no separate jobs.json) |
+| Session memory | `/srv/openclaw/memory/` |
+| Device identity | `/srv/openclaw/identity/` |
+| Credentials | `/srv/openclaw/credentials/` |
+| Personal vaults | `/srv/guide-vaults/personal/{name}/` |
+| Team vaults | `/srv/guide-vaults/teams/{team}/` |
+| Shared data | `/srv/guide-vaults/shared/` |
+| Agent outputs | `/srv/guide-outputs/` |
+| Digital team vault | `/srv/guide-vaults/teams/digital/` — **live via Obsidian Sync** (2026-05-19) |
+| OneDrive root | `/srv/onedrive/` (abraunegg client — pending setup) |
+| Guide runtime repo | `/srv/guide-core/` |
+| Guide pipeline scripts repo | `/srv/guide-engine/` |
+| Guide build/specs repo | `/srv/guide-build/` |
+| Guide data outputs | `/srv/guide-data/` — markdown exports written by guide-engine scripts, read by Guide agents. Not a repo — not yet populated. |
+| Compose file | `/srv/compose/openclaw.yml` |
+| Systemd unit | `/etc/systemd/system/openclaw.service` |
+| Systemd override | `/etc/systemd/system/openclaw.service.d/override.conf` |
+| OpenClaw logs | `/srv/openclaw/logs/gateway.log` |
+| Signals | `/srv/openclaw/workspaces/main/signals/` |
 | Filesystem layout spec | `Specs/guide-filesystem-layout.md` (canonical reference) |
 
 ---
@@ -152,33 +137,33 @@ IDENTITY.md -> SOUL.md -> USER.md -> AGENTS.md -> TOOLS.md
 
 | Type | Workspace (system) | User content | Config source | Comms | Generator |
 |------|-------------------|--------------|---------------|-------|-----------|
-| **Channel** | `~/.openclaw/workspace-{role}/` | `~/guide-vault/teams/{team}/` (read-write) | `roles/{role}.env` | Slack channel | `./generate.sh channel {role}` |
-| **Personal** | `~/.openclaw/workspace-personal-{name}/` | `~/guide-vault/personal/{name}/` (read-write) + `~/guide-vault/teams/` + `~/guide-vault/shared/` (read-write) | `roster.json["persons"]["{name}"]` | Telegram per-person bot | `./generate.sh personal {name}` |
+| **Channel** | `/srv/openclaw/workspaces/{role}/` | `/srv/guide-vaults/teams/{team}/` (read-write) | `roles/{role}.env` | Slack channel | `./generate.sh channel {role}` |
+| **Personal** | `/srv/openclaw/workspaces/personal-{name}/` | `/srv/guide-vaults/personal/{name}/` (read-write) + `/srv/guide-vaults/teams/` + `/srv/guide-vaults/shared/` (read-write) | `roster.json["persons"]["{name}"]` | Telegram per-person bot | `./generate.sh personal {name}` |
 
 ### Naming conventions
 
 | Item | Convention |
 |------|-----------|
-| Channel workspace | `~/.openclaw/workspace-{role}` (e.g., `workspace-data`, `workspace-seo`) |
-| Personal workspace | `~/.openclaw/workspace-personal-{name}` (e.g., `workspace-personal-nick`) |
-| Personal vault | `~/guide-vault/personal/{name}` (e.g., `personal/nick`) |
-| Team vault | `~/guide-vault/teams/{team}` (e.g., `teams/digital`, `teams/exco`) |
+| Channel workspace | `/srv/openclaw/workspaces/{role}` (e.g., `workspaces/data`, `workspaces/seo`) |
+| Personal workspace | `/srv/openclaw/workspaces/personal-{name}` (e.g., `workspaces/personal-nick`) |
+| Personal vault | `/srv/guide-vaults/personal/{name}` (e.g., `personal/nick`) |
+| Team vault | `/srv/guide-vaults/teams/{team}` (e.g., `teams/digital`, `teams/exco`) |
 | Brand codes | `ws` (Wilderness), `jc` (Jacada), `yz` (Yellow Zebra) |
 
 ### Factory structure
 
 | Item | Path |
 |------|------|
-| Channel templates | `~/guide-core/agent-factory/templates/channel/` (9 files) |
-| Personal templates | `~/guide-core/agent-factory/templates/personal/` (10 files) |
-| Channel configs | `~/guide-core/agent-factory/roles/{role}.env` |
-| Master roster | `~/guide-core/agent-factory/roster.json` (copied from vault `Specs/guide-roster.json`) |
-| Generator script | `~/guide-core/agent-factory/generate.sh` |
-| Runbook | `~/guide-core/agent-factory/ADD-AN-AGENT.md` |
+| Channel templates | `/srv/guide-core/agent-factory/templates/channel/` |
+| Personal templates | `/srv/guide-core/agent-factory/templates/personal/` |
+| Channel configs | `/srv/guide-core/agent-factory/roles/{role}.env` |
+| Master roster | `/srv/guide-core/agent-factory/roster.json` (copied from vault `Specs/guide-roster.json`) |
+| Generator script | `/srv/guide-core/agent-factory/generate.sh` |
+| Runbook | `/srv/guide-core/agent-factory/ADD-AN-AGENT.md` |
 
 ### Master roster (guide-roster.json)
 
-The master roster is the single source of truth for all personal instances, team vaults, channel agents, and API keys. It lives in the Obsidian vault at `Specs/guide-roster.json` and is copied to the Guide machine at `~/guide-core/agent-factory/roster.json`.
+The master roster is the single source of truth for all personal instances, team vaults, channel agents, and API keys. It lives in the Obsidian vault at `Specs/guide-roster.json` and is copied to the Guide machine at `/srv/guide-core/agent-factory/roster.json`.
 
 `generate.sh personal {name}` reads person config directly from roster.json. No individual `.env` files for personal instances.
 
@@ -265,7 +250,7 @@ The roster includes deployment gates (boolean checklists) and status tracking pe
 | Bash | `set -euo pipefail`. All vars quoted. ShellCheck-clean. Functions over inline. |
 | TypeScript (Skills) | Strict mode. Typed I/O. JSDoc on exports. Try/catch on all async. |
 | Python (ETL/services) | PEP 8. Type hints. Docstrings. `loguru` logging. `pydantic` models. `httpx` for HTTP. |
-| launchd | `com.guide.{service}.plist`. `KeepAlive: true`. Logs to `/tmp/openclaw/`. |
+| systemd | Unit files in `/etc/systemd/system/`. Use overrides for env vars. `sudo systemctl restart openclaw.service` to apply changes. |
 | Git | Conventional commits: `feat(chunk-NN): description` |
 
 ---
@@ -284,15 +269,16 @@ The roster includes deployment gates (boolean checklists) and status tracking pe
 
 ---
 
-## macOS-Specific Conventions
+## Ubuntu/Linux Conventions
 
 | Item | Convention |
 |------|-----------|
-| Service management | launchd (`~/Library/LaunchAgents/`) — not systemd |
-| Package manager | Homebrew |
-| Service plist naming | `ai.openclaw.gateway` (installed by `openclaw gateway install`) |
-| Gateway management | `openclaw gateway start/stop/restart/status` — not launchctl directly |
-| Firewall | macOS built-in + Little Snitch (if installed) |
+| Service management | systemd — `sudo systemctl restart openclaw.service` |
+| Package manager | apt |
+| Container runtime | Docker Engine (Linux native — not Docker Desktop) |
+| Compose file | `/srv/compose/openclaw.yml` |
+| Env vars | systemd override: `/etc/systemd/system/openclaw.service.d/override.conf` |
+| Firewall | UFW — default deny inbound, tailnet-only SSH |
 | Docker | Docker Desktop for Mac (Apple Silicon native) — not used for OpenClaw (ADR-021) |
 | File permissions | Same `440` rule for workspace files |
 
@@ -302,7 +288,7 @@ The roster includes deployment gates (boolean checklists) and status tracking pe
 
 ### Cron Prompt File Convention
 
-All cron job prompts live as standalone markdown files in `~/guide-core/prompts/cron/<job-name>.md`. Each job's `--message` is a single file-reference instruction:
+All cron job prompts live as standalone markdown files in `/srv/guide-core/prompts/cron/<job-name>.md`. Each job's `--message` is a single file-reference instruction:
 
 ```
 Read the file at /home/<user>/guide-core/prompts/cron/<job-name>.md and follow the instructions exactly.
@@ -312,8 +298,8 @@ Read the file at /home/<user>/guide-core/prompts/cron/<job-name>.md and follow t
 
 **Workflow for editing a prompt:**
 ```bash
-nano ~/guide-core/prompts/cron/<job-name>.md
-git -C ~/guide-core add prompts/cron/<job-name>.md && git commit -m "prompt: <description>" && git push
+nano /srv/guide-core/prompts/cron/<job-name>.md
+git -C /srv/guide-core add prompts/cron/<job-name>.md && git commit -m "prompt: <description>" && git push
 # No restart needed — file is read fresh at each cron run
 ```
 
@@ -349,18 +335,18 @@ Cron jobs can be silently disabled by OpenClaw after consecutive errors — no a
 
 ```bash
 # Disabled jobs
-cat ~/.openclaw/cron/jobs.json | python3 -c "
+cat /srv/openclaw/openclaw.json | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
-disabled = [j['name'] for j in d['jobs'] if not j.get('enabled', True)]
+disabled = [j['name'] for j in d.get('cron',{}).get('jobs',[]) if not j.get('enabled', True)]
 print('Disabled:', disabled if disabled else 'none')
 "
 
 # Jobs with consecutive errors
-cat ~/.openclaw/cron/jobs.json | python3 -c "
+cat /srv/openclaw/openclaw.json | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
-for j in d['jobs']:
+for j in d.get('cron',{}).get('jobs',[]):
     errs = j.get('state', {}).get('consecutiveErrors', 0)
     if errs > 0:
         print(f'{j[\"name\"]}: {errs} errors — {j[\"state\"].get(\"lastError\",\"\")[:80]}')

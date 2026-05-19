@@ -28,10 +28,10 @@ Integrates Google Calendar and Gmail with Guide using the `gog` CLI. Guide gains
 
 ### Prerequisites
 
-- [ ] CHUNK-07 complete — security hardening done, credentials directory exists
-- [ ] `gog` CLI: `brew list | grep gog` (install if missing)
+- [ ] CHUNK-07c complete — security hardening done, credentials directory exists at `/srv/openclaw/credentials/`
+- [ ] `gog` CLI: `command -v gog` (install if missing — see Task 1 for Linux install)
 - [ ] Google Cloud project with Calendar API + Gmail API enabled
-- [ ] `client_secret.json` downloaded from Google Cloud Console, placed at `~/.openclaw/credentials/google-client_secret.json`
+- [ ] `client_secret.json` downloaded from Google Cloud Console, placed at `/srv/openclaw/credentials/google-client_secret.json`
 - [ ] Google Cloud project: create new project (do not reuse `jarvis-492211`) — name it `guide-[XXXXXX]`, Gareth to create and download `client_secret.json`
 - [ ] Gmail account: create a new free Gmail address for Guide (e.g. `wilderness.guide@gmail.com` or similar) — Gareth to create and confirm address before running auth
 
@@ -56,7 +56,7 @@ GOOGLE_ACCOUNT=[GUIDE_GMAIL_ADDRESS]   # Gareth's work Google account — confir
 GOG_KEYRING_PASSWORD=""                      # Empty string = file-based keyring (required for cron/headless)
 ```
 
-Add `GOG_KEYRING_PASSWORD=""` to `~/guide-core/docker/.env` and to the `docker-compose.yml` environment block.
+Add `GOG_KEYRING_PASSWORD=""` to the systemd override at `/etc/systemd/system/openclaw.service.d/override.conf` (under `[Service]`, as `Environment=GOG_KEYRING_PASSWORD=`).
 
 ---
 
@@ -69,20 +69,25 @@ Add `GOG_KEYRING_PASSWORD=""` to `~/guide-core/docker/.env` and to the `docker-c
 if command -v gog &>/dev/null; then
   echo "✓ gog already installed: $(gog --version)"
 else
-  brew install steipete/tap/gogcli
-  echo "✓ gog installed: $(gog --version)"
+  # gog is a macOS-first tool by Peter Steinberger. Check for a Linux release:
+  # https://github.com/steipete/gog/releases
+  # If a Linux binary is available, download and install to /usr/local/bin/gog
+  # If not available for Linux, raise with Gareth — may need an alternative approach
+  # (e.g. direct Google API calls, or a different OAuth helper)
+  echo "⚠️ gog not installed — check https://github.com/steipete/gog/releases for Linux binary"
+  exit 1
 fi
 ```
 
 #### Task 2 — Verify credentials file exists
 
 ```bash
-[[ -f ~/.openclaw/credentials/google-client_secret.json ]] \
+[[ -f /srv/openclaw/credentials/google-client_secret.json ]] \
   && echo "✓ client_secret.json present" \
-  || { echo "✗ Missing: ~/.openclaw/credentials/google-client_secret.json — download from Google Cloud Console first"; exit 1; }
+  || { echo "✗ Missing: /srv/openclaw/credentials/google-client_secret.json — download from Google Cloud Console first"; exit 1; }
 ```
 
-> **If not present:** Go to Google Cloud Console → your project → APIs & Services → Credentials → Download OAuth 2.0 client secret JSON → place at `~/.openclaw/credentials/google-client_secret.json`.
+> **If not present:** Go to Google Cloud Console → your project → APIs & Services → Credentials → Download OAuth 2.0 client secret JSON → place at `/srv/openclaw/credentials/google-client_secret.json`.
 
 #### Task 3 — OAuth auth flow (interactive — requires browser)
 
@@ -102,7 +107,7 @@ export GOOGLE_ACCOUNT="[GUIDE_GMAIL_ADDRESS]"   # replace with actual account
 
 # Auth for both Calendar and Gmail in one flow
 gog auth --account "$GOOGLE_ACCOUNT" \
-  --credentials ~/.openclaw/credentials/google-client_secret.json \
+  --credentials /srv/openclaw/credentials/google-client_secret.json \
   --scopes calendar,gmail \
   --keyring-backend file \
   --port 18800
@@ -142,34 +147,37 @@ gog gmail search "in:inbox is:unread" \
 echo "✓ Gmail access confirmed"
 ```
 
-#### Task 6 — Add GOG_KEYRING_PASSWORD to Docker environment
+#### Task 6 — Add GOG_KEYRING_PASSWORD to systemd override
 
 ```bash
-# Add to .env if not already present
-grep -q "GOG_KEYRING_PASSWORD" ~/guide-core/docker/.env \
-  && echo "✓ Already in .env" \
-  || echo 'GOG_KEYRING_PASSWORD=' >> ~/guide-core/docker/.env
+OVERRIDE=/etc/systemd/system/openclaw.service.d/override.conf
 
-# Verify docker-compose.yml passes it through
-grep -q "GOG_KEYRING_PASSWORD" ~/guide-core/docker/docker-compose.yml \
-  && echo "✓ Already in compose env" \
-  || echo "⚠️ Add GOG_KEYRING_PASSWORD to environment block in docker-compose.yml"
+# Check if already present
+grep -q "GOG_KEYRING_PASSWORD" "$OVERRIDE" \
+  && echo "✓ Already in systemd override" \
+  || {
+    echo "Adding GOG_KEYRING_PASSWORD to $OVERRIDE"
+    # Add under [Service] block — Gareth must run this with sudo:
+    echo "  Environment=GOG_KEYRING_PASSWORD="
+    echo "  (add this line manually under [Service] in $OVERRIDE, then: sudo systemctl daemon-reload && sudo systemctl restart openclaw.service)"
+  }
 ```
 
-If not in docker-compose.yml, add to the OpenClaw service `environment:` block:
-```yaml
-environment:
-  - GOG_KEYRING_PASSWORD=
+The override file structure is:
+```ini
+[Service]
+Environment=HOST_UID=1002
+Environment=GOG_KEYRING_PASSWORD=
 ```
 
-Restart the container after:
+After editing (requires sudo):
 ```bash
-cd ~/guide-core/docker && docker compose restart openclaw
+sudo systemctl daemon-reload && sudo systemctl restart openclaw.service
 ```
 
 #### Task 7 — Update TOOLS.md
 
-Add a Google section to `~/.openclaw/workspace/TOOLS.md`:
+Add a Google section to `/srv/openclaw/workspaces/main/TOOLS.md`:
 
 ```markdown
 ## Google (Calendar + Gmail)
@@ -201,11 +209,11 @@ gog gmail drafts create --account [GUIDE_GMAIL_ADDRESS] --to ADDR --subject SUBJ
 **Rule:** Never send email directly. Always create a draft and confirm with Gareth first.
 ```
 
-> **Important:** Replace `[domain].com` with the actual account. Lock TOOLS.md after writing: `chmod 440 ~/.openclaw/workspace/TOOLS.md`
+> **Important:** Replace `[domain].com` with the actual account. Lock TOOLS.md after writing: `sudo chown guide:guide-data /srv/openclaw/workspaces/main/TOOLS.md && chmod 440 /srv/openclaw/workspaces/main/TOOLS.md`
 
 #### Task 8 — Update BOOTSTRAP.md with calendar context
 
-Add to `~/.openclaw/workspace/BOOTSTRAP.md` (the morning brief section, or create one if absent):
+Add to `/srv/openclaw/workspaces/main/BOOTSTRAP.md` (the morning brief section, or create one if absent):
 
 ```markdown
 ## Calendar & Email Context
@@ -221,7 +229,7 @@ Email drafts only — never send directly.
 #### Task 9 — Commit
 
 ```bash
-cd ~/guide-core && git add -A && git commit -m "feat(chunk-07a): Google Calendar + Gmail integration via gog CLI"
+cd /srv/guide-core && git add -A && git commit -m "feat(chunk-07a): Google Calendar + Gmail integration via gog CLI"
 ```
 
 ---
@@ -240,10 +248,10 @@ gog calendar list --account "$ACCOUNT" --start "$(date -u +%Y-%m-%dT00:00:00Z)" 
 gog gmail search "in:inbox is:unread" --max 1 --account "$ACCOUNT" &>/dev/null \
   && echo "✓ gmail access" || echo "✗ gmail failed"
 
-grep -q "GOG_KEYRING_PASSWORD" ~/guide-core/docker/.env \
-  && echo "✓ keyring env set" || echo "✗ keyring env missing"
+grep -q "GOG_KEYRING_PASSWORD" /etc/systemd/system/openclaw.service.d/override.conf \
+  && echo "✓ keyring env set in systemd override" || echo "✗ keyring env missing from systemd override"
 
-grep -q "Google" ~/.openclaw/workspace/TOOLS.md \
+grep -q "Google" /srv/openclaw/workspaces/main/TOOLS.md \
   && echo "✓ TOOLS.md updated" || echo "✗ TOOLS.md not updated"
 ```
 
