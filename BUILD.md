@@ -99,16 +99,16 @@ The order in which people come online and Guide becomes part of their daily rout
 
 | Chunk | Title | Key Deliverables |
 |-------|-------|------------------|
-| CHUNK-15 | Keith Instance | CEO instance — broadest exec scope. Deferred from CHUNK-14. |
-| CHUNK-16 | Hadley Instance | CCO instance — exec + digital team vault access |
+| CHUNK-15 | Keith Instance | CEO instance — broadest exec scope. **Workspace built, awaiting bot token from Gareth.** |
+| CHUNK-16 | Hadley Instance | CCO instance — exec + digital team vault access. **Workspace built, awaiting bot token from Gareth.** |
 | CHUNK-17 | Scribe Agent | Meeting transcription, note extraction, task routing to vault |
 | CHUNK-18 | Hermes Analyst | Hermes installed (separate Docker container). Analyst Agent configured. Parallel pilot alongside OpenClaw for 6 weeks. |
 
 **Personal instance rollouts continue:** Scott, Caro, Frances, Simon, Dean — one per chunk, following rollout order in [[personal-instance-architecture]]. Each is lightweight once the factory works.
 
-**Note:** All Phase 2 work begins after the Ubuntu machine is set up and hardened (CHUNK-07 re-spec'd for Ubuntu + Docker).
+**Note:** Ubuntu machine (guide-server) is live — CHUNK-07c complete 2026-05-19. Phase 2 work can begin.
 
-**Note on Hermes:** Chunk spec to be written now (Architect) so it is ready to execute post-demo. Not demo-critical — do not let it distract from Phase 1.
+**Note on Hermes:** `/srv/hermes/` directory and profiles prepared. Chunk spec not yet written — do before executing.
 
 ---
 

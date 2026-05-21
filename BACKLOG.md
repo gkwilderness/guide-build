@@ -51,6 +51,8 @@ Role tags: `[G]` Gareth · `[E]` Engineer · `[A]` Architect · `[V]` Vault/Guid
 
 - [ ] **Fix tool calling retry loop** `[E]` — Guide looped ~15 times attempting to use the `slack` tool before giving up. Two fixes: (1) enable Slack tool for Slack session contexts; (2) add graceful fallback — detect tool unavailability on first failure and stop retrying. (2026-05-20)
 
+- [ ] **Safari agent TOOLS.md — stale Mac Mini paths** `[E]` — `/srv/openclaw/workspaces/safari/TOOLS.md` still references old Mac Mini (`This Machine: Mac Mini M4`, workspace path `~/.openclaw/workspace-safari/`). Update to Z8 paths: hostname `guide-server`, workspace `/srv/openclaw/workspaces/safari/`. (2026-05-21)
+
 - [ ] **HubSpot connector: fix for personal-nick** `[E]` — Two blockers: (1) skill calls `~/skills/hubspot-connector/scripts/hs_query.py` — fix to absolute path `/srv/openclaw/skills/hubspot-connector/scripts/hs_query.py`; (2) token is in digital vault, Nick's agent can't reach it — copy token reference to `/srv/guide-vaults/shared/`. (2026-05-19)
 
 - [ ] **HubSpot connector: timezone handling** `[E]` — `hs_query.py` uses UTC, HubSpot UI uses BST. Add `--tz` flag, default UTC, document explicitly. Canonical number = UTC. (2026-05-19)

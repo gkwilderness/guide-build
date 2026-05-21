@@ -5,7 +5,7 @@ area: ai
 project: "Guide"
 tags: [ai, guide, documentation]
 status: active
-updated: 2026-04-05
+updated: 2026-05-21
 ---
 # Guide — Documentation
 
@@ -37,10 +37,10 @@ The Guide machine has the guide-build vault synced and all repos locally. The En
 
 | Resource | Path on Guide Machine | Purpose |
 |----------|-----------------------|---------|
-| Guide vault | `$GUIDE_VAULT_PATH` | All specs, briefs, CLAUDE.md files, chunks |
-| guide-core | `~/guide-core/` | OpenClaw runtime code (agent factory, workspace templates) |
-| guide-engine | `~/guide-engine/` | Data pipeline scripts (ETL, exporters) — code |
-| guide-data | `~/guide-data/` | Output directory — markdown written by guide-engine, read by agents. Not a repo. |
+| guide-build | `/srv/guide-build/` | All specs, briefs, CLAUDE.md files, chunks (read-only mount in container) |
+| guide-core | `/srv/guide-core/` | OpenClaw runtime code (agent factory, workspace templates, scripts) |
+| guide-engine | `/srv/guide-engine/` | Data pipeline scripts (ETL, exporters) — code |
+| guide-data | `/srv/guide-data/` | Output directory — markdown written by guide-engine, read by agents. Not a repo. |
 
 ## Known Risks — OpenClaw CLI Drift
 
@@ -65,11 +65,11 @@ This surfaces the actual CLI surface before attempting chunk tasks. Adapt flags 
 
 - [x] ~~WhatsApp Business API~~ — Not needed. OpenClaw uses Baileys (WhatsApp Web bridge). Dedicated SIM + QR scan.
 - [x] ~~Slack app setup~~ — Uses Slack Bolt + Socket Mode. Bot token + App token. Scopes documented in `__CONFIG/GUIDE.md`.
-- [ ] Vault sync mechanism — iCloud, Syncthing, or git for keeping Guide machine vault current
+- [x] ~~Vault sync mechanism~~ — guide-build cloned to `/srv/guide-build/` (git pull). Digital team vault via Obsidian Sync to `/srv/guide-vaults/teams/digital/`. Exco + shared vaults populated directly.
 - [ ] Data API rate limits per source (GA4, Google Ads, HubSpot, Meta, Bing, DV360)
 - [ ] Multi-brand HubSpot setup — one portal or three?
 - [ ] Paperclip production readiness (revisit monthly)
 
 ---
 
-*Updated: 2026-04-17*
+*Updated: 2026-05-21 — Engineer context paths corrected to /srv/; vault sync gap resolved*
