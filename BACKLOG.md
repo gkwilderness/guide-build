@@ -14,6 +14,26 @@ Role tags: `[G]` Gareth · `[E]` Engineer · `[A]` Architect · `[V]` Vault/Guid
 
 ---
 
+## Skills
+- exco-onboarding
+- team-onboarding
+- how-to-work-with-gareth
+- people-map
+- knowledge-base
+- ceo-commitments
+- doc-converter
+- api-docs
+- humour
+- the-weather-today
+- camp-of-the-day
+- wildlife-of-the-day
+- signals
+- checklist
+- sizing
+- prioritisation
+## Agents
+- sandbox agent
+
 ## FIRE — Blocking Now
 
 - [ ] **Fix nightly flush cron — wrong script path** `[E]` — Cron payload calls `/srv/openclaw/workspaces/main/scripts/flush-slack-sessions.sh` (does not exist inside container). Correct path: `/srv/guide-core/scripts/flush-slack-sessions.sh`. Ran manually on 2026-05-21, 30 sessions flushed OK. Fix the cron job payload in openclaw.json. (2026-05-21)
