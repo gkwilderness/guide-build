@@ -144,6 +144,8 @@ Role tags: `[G]` Gareth · `[E]` Engineer · `[A]` Architect · `[V]` Vault/Guid
 
 ## WHITE — Planned / Later
 
+- [ ] **INFRA.md Slack channel table audit** `[A]` — Table lists 10 channels; openclaw.json has 20 enabled. Missing channel names for ~7 IDs. Cross-reference openclaw.json channel IDs against Slack to get names, update INFRA.md table. (2026-05-21)
+
 - [ ] **MCP semantic search: vault isolation architecture** `[A]` — Gareth setting up obsidian-mcp-server + nomic-embed-text via Ollama. Design needed: can agents have per-agent MCP connections? Can multiple nomic-embed-text instances run with different indexed corpora? Isolation requirement: Nick's vault must not be readable by main agent or team agents. One-directional: Nick reads down into business, business cannot read up into Nick's files. (2026-05-04)
 
 - [ ] **Exec security: scope from "full" to allowlist** `[A]` — Current: `tools.exec.security: "full"` with `ask: "off"` — unrestricted shell access as gareth/admin. Restrict to working directories. Architect to validate proposed allowlist (workspaces, guide-vaults, guide-core, guide-data, /tmp/openclaw) and answer 4 open questions before Engineer implements. (2026-04-29)
