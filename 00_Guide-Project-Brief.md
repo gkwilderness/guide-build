@@ -116,7 +116,8 @@ Guide is a dedicated runtime machine — separate from Gareth's laptop, separate
 
 | Task type | Model | Where |
 |-----------|-------|-------|
-| Sensitive data (HR, board, finance, M&A) | Local 34B (Qwen 2.5 32B or Llama 3.3 34B, Q4) | On-premise — Ollama + RTX 3090 |
+| Sensitive data (HR, board, finance, M&A) | `qwen3:30b-a3b` (primary) or `qwen3:14b` (lightweight) | On-premise — Ollama + RTX 3090 |
+| Summarisation, non-agentic local jobs | `gemma3:27b-it-q4_K_M` | On-premise — Ollama (no tool calling — do not use for exec tasks) |
 | Background cron, data checks, formatting | Haiku | Anthropic API |
 | Interactive queries, brief generation | Sonnet | Anthropic API |
 | Deep reasoning, capital allocation, board synthesis | Opus | Anthropic API |
@@ -136,11 +137,11 @@ Local model is a gate for rolling Guide out to Finance, HR, and board-level func
 | Ticket-based work | Audit trail for every agent action |
 | Governance gates | Human-in-the-loop for executive-facing outputs |
 
-**Decision:** Not yet. Paperclip is 5 weeks old (launched March 2026) with a bus factor of ~1 core contributor. High momentum (47K+ stars) but volatile.
+**Decision:** Proceeding. Installation in progress on guide-server as of 2026-05-21 (CHUNK-11).
 
-- **Phase 0–2:** Build on OpenClaw directly
-- **Phase 3+:** Evaluate Paperclip as the orchestration layer when spinning up team agents at scale
-- **Trigger:** Revisit when agent count exceeds 4 and cost/coordination overhead becomes real
+- **Phase 1:** Paperclip POC on guide-server alongside OpenClaw
+- **Phase 3+:** Evaluate as full orchestration layer at scale
+- `/srv/paperclip/` prepared; Gareth installing
 
 ### Automation Layer — Huginn (Phase 3)
 
@@ -156,7 +157,7 @@ Local model is a gate for rolling Guide out to Finance, HR, and board-level func
 
 **Why Huginn, not custom Python:** `guide-engine/` was designed to hold custom automation code. Huginn replaces much of that with a visual workflow builder — faster to build, easier to maintain, no custom code for standard integration patterns. LLM agents handle intelligence; Huginn handles plumbing.
 
-**Decision:** Phase 3 (alongside data layer). Install on the Guide machine once personal instances are stable and data integrations are starting. Self-hosted Ruby on Rails app — runs alongside OpenClaw, no dependency conflict.
+**Decision:** Phase 3 (alongside data layer). Self-hosted Ruby on Rails app — runs alongside OpenClaw, no dependency conflict. **Live on guide-server as of 2026-05-19.** Docker Compose + systemd (`huginn.service`), accessible via Tailscale on port 3001.
 
 ### Two-Claude Architecture
 
@@ -288,32 +289,33 @@ agent-factory/
 
 ### Shared Agents (All Brands)
 
-| Agent | Role | Priority | Phase |
-|-------|------|----------|-------|
-| **Guide** | Chief of staff — orchestrates all sub-agents, handles ad hoc requests | P0 | 0 |
-| **Briefing** | Team briefs — morning digests, weekly summaries, board-ready packs | P0 | 1 |
-| **Scribe** | Meeting capture — transcription, note extraction, task routing | P1 | 2 |
-| **Pipeline** | Data pipeline — manages ETL runs, data freshness, pipeline health | P2 | 2 |
-| **Analyst** | Cross-domain analysis, ad hoc investigation, data storytelling | P3 | 3 |
-| **Finance** | Finance team — lead volume, sales pipeline, media spend (cross-brand) | P2 | 2 |
+| Agent | Role | Priority | Phase | Status |
+|-------|------|----------|-------|--------|
+| **Guide** | Chief of staff — orchestrates all sub-agents, handles ad hoc requests | P0 | 0 | ✅ Live |
+| **Briefing** | Team briefs — morning digests, weekly summaries, board-ready packs | P0 | 1 | Planned |
+| **Scribe** | Meeting capture — transcription, note extraction, task routing | P1 | 2 | Planned |
+| **Pipeline** | Data pipeline — manages ETL runs, data freshness, pipeline health | P2 | 2 | Planned |
+| **Analyst** | Cross-domain analysis, ad hoc investigation, data storytelling | P3 | 3 | Planned |
+| **Finance** | Finance team — lead volume, sales pipeline, media spend (cross-brand) | P2 | 2 | Planned |
+| **Safari** | Safari knowledge layer — camps, regions, seasons, itinerary support for Travel Designers | P1 | 1 | ✅ Live — `#guide-sales` |
 
 ### Brand-Specific Agents (×3: WS, Jacada, YZ)
 
-| Agent Template | Role | Priority | Phase |
-|----------------|------|----------|-------|
-| **SEO** | Rankings, technical audits, content gap analysis | P3 | 3 |
-| **Paid** | PPC/Social/Programmatic performance | P3 | 3 |
-| **HubSpot** | Lead/deal pipeline, CRM health, conversion tracking | P3 | 3 |
-| **Product** | Site performance, UX metrics, A/B test analysis | P3 | 3 |
+| Agent Template | Role | Priority | Phase | Status |
+|----------------|------|----------|-------|--------|
+| **SEO** | Rankings, technical audits, content gap analysis | P3 | 3 | ✅ WS live — JC/YZ planned |
+| **Paid** | PPC/Social/Programmatic performance | P3 | 3 | Planned |
+| **HubSpot** | Lead/deal pipeline, CRM health, conversion tracking | P3 | 3 | ✅ WS live — JC/YZ planned |
+| **Product** | Site performance, UX metrics, A/B test analysis | P3 | 3 | ✅ WS live — JC/YZ planned |
 
-*Each template produces 3 agents (e.g., SEO-WS, SEO-JC, SEO-YZ) via the agent factory.*
+*Each template produces 3 agents (e.g., SEO-WS, SEO-JC, SEO-YZ) via the agent factory. WS variants built in Phase 1 (CHUNK-10); JC + YZ added in Phase 4.*
 
 ### Cross-Brand Agents (Portfolio Level)
 
-| Agent | Role | Priority | Phase |
-|-------|------|----------|-------|
-| **Apex** | Competition hunter — PPC diagnostics, anomaly detection, opportunity | P4 | 4 |
-| **CapitalCore** | Capital allocation — yield curves, budget pacing, portfolio efficiency | P4 | 5 |
+| Agent | Role | Priority | Phase | Status |
+|-------|------|----------|-------|--------|
+| **Apex** | Competition hunter — PPC diagnostics, anomaly detection, opportunity | P4 | 4 | Planned |
+| **CapitalCore** | Capital allocation — yield curves, budget pacing, portfolio efficiency | P4 | 5 | Planned |
 
 ### Future
 
@@ -327,16 +329,17 @@ agent-factory/
 
 In addition to the shared/brand/cross-brand agents above, Guide supports **personal instances** — one agent per person, serving that individual through a dedicated Telegram bot. Personal instances mount team vaults (read-only) relevant to the person's role.
 
-| Person | Agent ID | Team Vault(s) | Tier |
-|--------|----------|---------------|------|
-| Nick | `personal-nick` | exec | Exec |
-| Hadley | `personal-hadley` | exec, digital | Exec |
-| Keith | `personal-keith` | exec | Exec |
-| Scott | `personal-scott` | sales (future) | Domain |
-| Caro | `personal-caro` | reservations (future) | Domain |
-| Frances | `personal-frances` | digital | Domain |
-| Simon | `personal-simon` | sales (future) | Domain |
-| Dean | `personal-dean` | people (future) | Domain |
+| Person | Agent ID | Team Vault(s) | Tier | Status |
+|--------|----------|---------------|------|--------|
+| Nick | `personal-nick` | exec | Exec | ✅ Live — `@WildernessGuideNickBot` |
+| Hadley | `personal-hadley` | exec, digital | Exec | Built — awaiting bot token |
+| Keith | `personal-keith` | exec | Exec | Built — awaiting bot token |
+| Julian | `personal-julian` | exec | Exec | Built — awaiting bot token |
+| Caro | `personal-caro` | reservations (future) | Domain | Built — awaiting bot token |
+| Dean | `personal-dean` | people (future) | Domain | Built — awaiting bot token |
+| Scott | `personal-scott` | sales (future) | Domain | Planned |
+| Frances | `personal-frances` | digital | Domain | Planned |
+| Simon | `personal-simon` | sales (future) | Domain | Planned |
 
 See [[personal-instance-architecture]] for the full specification.
 
@@ -344,13 +347,13 @@ See [[personal-instance-architecture]] for the full specification.
 
 Team vaults are shared operational context for functional teams. They live in `guide-teams/` on the Guide machine, synced via OneDrive. Agents mount them read-only.
 
-| Team Vault | Status | First Team Vault? |
-|------------|--------|-------------------|
-| `digital` | Live — Wilderness-Guide vault | Yes (reference implementation) |
-| `exec` | To create | — |
-| `sales` | Future | — |
-| `reservations` | Future | — |
-| `people` | Future | — |
+| Team Vault | Status | Notes |
+|------------|--------|-------|
+| `digital` | ✅ Live — Obsidian Sync | Reference implementation |
+| `exco` | ✅ Live — has content | PRIORITIES.md, hubspot-sales-data, travel policy |
+| `sales` | Directory only — empty | Future |
+| `reservations` | Directory only — empty | Future |
+| `hr` | Directory only — empty | Future |
 
 See [[team-vault-conventions]] for the structure and conventions.
 

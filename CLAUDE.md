@@ -119,13 +119,18 @@ Key sections: `persons` (identity, vaults, gates), `teamVaults` (source, gates),
 Guide is **live on guide-server — CHUNK-07c complete, 7-day soak running.**
 
 - Guide machine: HP Z8 G4 (guide-server, Ubuntu 24.04) — OpenClaw in Docker, systemd-managed, all green
-- Tailscale: guide-server at 100.80.44.14. Mac Mini (100.72.42.1) stays on tailnet as hot rollback until soak ends ~2026-05-25
-- Telegram: @WildernessGuideBot + @WildernessGuideNickBot (Nick live). @GuideHadleyBot pending.
-- Slack: Socket mode, bi-directional — DMs + all channels live
+- Tailscale: guide-server at 100.80.44.14. Mac Mini (100.72.42.1) on tailnet as hot rollback — decommission after soak ends ~2026-05-25
+- Telegram: `@WildernessGuideBot` (main) + `@WildernessGuideNickBot` (Nick live). Exec bots (Keith, Hadley, Caro, Dean, Julian) built — awaiting API keys/tokens.
+- Slack: Socket mode, bi-directional — DMs + 20 channels live
 - WhatsApp: Deferred
-- OneDrive on guide-server: not yet configured — `/srv/guide-vaults/teams/` and `/srv/guide-data/` are empty stubs
-- Phase 0 remaining: CHUNK-07a (Google integration), CHUNK-07d (Tailscale `allowedOrigins` cleanup), post-migration revisit of CHUNK-08
-- Phase 1 remaining: CHUNK-11 Paperclip, CHUNK-15 Keith instance, CHUNK-16 Hadley instance
+- Huginn: Live on guide-server — Docker, systemd, Tailscale port 3001
+- Ollama: Live — RTX 3090 CUDA, 4 models installed. Primary agentic model: `qwen3:30b-a3b`
+- Paperclip: Installation in progress (2026-05-21) — `/srv/paperclip/` prepared
+- Hermes / Open WebUI: Directories prepared, services not yet running
+- OneDrive: Not yet configured — `/srv/onedrive/` empty
+- Safari agent: Live — specialist safari knowledge for Travel Designers via `#guide-sales`
+- Phase 0 remaining: CHUNK-07a (Google integration), CHUNK-07d (Tailscale `allowedOrigins` cleanup), CHUNK-08 (OpenClaw cron jobs not yet configured — host cron active)
+- Phase 1 remaining: CHUNK-11 Paperclip (in progress), CHUNK-15 Keith instance, CHUNK-16 Hadley instance
 
 ## Working With This Project
 

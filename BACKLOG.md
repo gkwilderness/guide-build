@@ -16,8 +16,6 @@ Role tags: `[G]` Gareth · `[E]` Engineer · `[A]` Architect · `[V]` Vault/Guid
 
 ## FIRE — Blocking Now
 
-- [ ] **Z8 foundation architecture spec** `[A]` — PRIORITY. Full pre-build doc at `~/guide-build/Notes/2026-05-15 Huginn Z8 Foundation Architecture.md`. Architect to read it, answer 8 open questions, write CHUNK-17 (idempotent foundation chunk covering /srv/ structure, users, groups, SMB, databases, Ollama, OneDrive, Docker Compose, security hardening sequence). **No Engineer build sessions on Z8 until this is complete.** Also read: `Notes/2026-05-15 Z8 Security Best Practice.md` and `BUILD/DEV-CHUNKS/CHUNK-07-security-hardening.md`. (2026-05-15)
-
 - [ ] **Fix nightly flush cron — wrong script path** `[E]` — Cron payload calls `/srv/openclaw/workspaces/main/scripts/flush-slack-sessions.sh` (does not exist inside container). Correct path: `/srv/guide-core/scripts/flush-slack-sessions.sh`. Ran manually on 2026-05-21, 30 sessions flushed OK. Fix the cron job payload in openclaw.json. (2026-05-21)
 
 - [ ] **Register 9 new skills + refresh 8 existing** `[E]` — All staging files at `/srv/guide-staging/<skill>/SKILL.md` approved by Gareth. Full report: `/srv/guide-staging/MORNING-REPORT-2026-05-20.md`. Engineer to copy SKILL.md files and register new skills in openclaw.json, then gateway restart.
@@ -45,7 +43,7 @@ Role tags: `[G]` Gareth · `[E]` Engineer · `[A]` Architect · `[V]` Vault/Guid
 
 ### Engineer
 
-- [ ] **Nightly activity digest — pull gemma4:26b and build script** `[E]` — Ollama installed and running on Z8. Last step: `ollama pull gemma4:26b` (18GB, fits RTX 3090 with 6GB headroom). Then build `/srv/guide-core/scripts/nightly-digest.sh` per spec in →engineer.md (2026-05-20 IN PROGRESS entry). Reads session .jsonl files, pipes to Ollama, saves to `memory/digest/YYYY-MM-DD.md`, posts to Slack #guide-logs (C0ATGQ167SN) via slack-post.sh. Update nightly-guide-logs-digest cron job when done. (2026-05-20)
+- [ ] **Nightly activity digest — build script** `[E]` — Ollama installed with `qwen3:30b-a3b` (primary agentic model, supports tool calling). Note: `gemma4:26b` does not exist — use `qwen3:30b-a3b` for agentic jobs, not `gemma3:27b` (summarisation only, no tool calling). Build `/srv/guide-core/scripts/nightly-digest.sh` per spec in →engineer.md (2026-05-20 IN PROGRESS entry). Reads session .jsonl files, pipes to Ollama, saves to `memory/digest/YYYY-MM-DD.md`, posts to Slack #guide-logs (C0ATGQ167SN) via slack-post.sh. Update nightly-guide-logs-digest cron job when done. (2026-05-20)
 
 - [ ] **Enable Slack tool** `[E]` — Add and enable the Slack tool so Guide can post messages, react, pin/unpin, and interact with Slack programmatically from within Slack sessions. Currently blocking useful Slack interactions. (2026-05-20)
 
@@ -86,6 +84,8 @@ Role tags: `[G]` Gareth · `[E]` Engineer · `[A]` Architect · `[V]` Vault/Guid
 ---
 
 ## YELLOW — Next Up
+
+- [ ] **Z8 foundation architecture spec — idempotent chunk** `[A]` — Write a foundation chunk (was CHUNK-17 in FIRE, now downgraded — Z8 is live so no longer blocking). Deliverable: idempotent spec covering `/srv/` structure, users/groups, databases, Ollama, OneDrive, Docker Compose, security hardening sequence. Read `Notes/2026-05-15 Huginn Z8 Foundation Architecture.md` and `Notes/2026-05-15 Z8 Security Best Practice.md` first. (2026-05-15, downgraded 2026-05-21)
 
 - [ ] **Build 3 new skills: tone of voice, Lenny, Slack tool** `[E]` — Waiting on Gareth spec (HIGH item above). Build after spec confirmed. (2026-05-20)
 

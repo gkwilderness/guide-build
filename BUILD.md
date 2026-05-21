@@ -82,7 +82,7 @@ The order in which people come online and Guide becomes part of their daily rout
 |-------|-------|--------|------------------|
 | CHUNK-09 | Agent Factory | ✅ Complete | Base templates, `generate.sh`, workspace scaffold. Channel + personal instance types supported. |
 | CHUNK-10 | Channel Agents | ✅ Complete | 5 agents live: Data, MarTech, SEO, Digital Product, HubSpot. All wired to Slack channels, tested. Wilderness-only. |
-| CHUNK-11 | Paperclip | **Not started — deferred to post-Ubuntu** | Pulled forward for demo but not executed. Will build on Ubuntu machine once stable. |
+| CHUNK-11 | Paperclip | **Installation in progress — 2026-05-21** | Gareth installing on guide-server. `/srv/paperclip/` prepared. |
 | CHUNK-12 | Team Vault Architecture | ✅ Complete | `guide-vault/`, `guide-teams/`, `guide-shared/`, `guide-outputs/` created. Digital vault symlinked. |
 | CHUNK-13 | Personal Instance Factory | ✅ Complete | Factory extended with personal instance support. `templates/personal/`, `generate.sh personal {name}`. |
 | CHUNK-14 | Nick Instance | ✅ Complete (Nick only) | Nick instance live on @WildernessGuideNickBot. Keith deferred — moves to Phase 2 as CHUNK-15. |
@@ -121,7 +121,7 @@ The order in which people come online and Guide becomes part of their daily rout
 | CHUNK-16 | Pipeline Agent | ETL orchestration, data freshness monitoring, self-healing restarts |
 | CHUNK-17 | Data Quality | Validation rules, anomaly detection on ingested data, alerting |
 | CHUNK-18 | MVP ETL Process | End-to-end: Python pulls → markdown summary → Guide interprets → report → person |
-| CHUNK-19 | Huginn | Self-hosted event automation ([huginn/huginn](https://github.com/huginn/huginn)). Webhook routing, data source monitoring, scheduled triggers, non-LLM pipeline orchestration. Replaces custom Python glue in `guide-engine/`. |
+| CHUNK-19 | Huginn | ✅ **Deployed ahead of schedule (2026-05-19)** — Self-hosted event automation running on guide-server. Docker Compose + systemd, Tailscale port 3001. Spec not written (deployed directly). |
 
 **Huginn rationale:** Guide's LLM agents handle intelligence — interpretation, briefs, recommendations. Huginn handles the plumbing — watching for events, transforming data, routing webhooks, triggering pipelines. Self-hosted Zapier with no per-action cost, full control, and 30+ integrations (Slack, Telegram, JIRA, RSS, webhooks, SMTP, etc.). See [[00_Guide-Project-Brief#Huginn]] for detail.
 

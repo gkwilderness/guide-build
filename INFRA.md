@@ -5,7 +5,7 @@ area: ai
 project: "Guide"
 tags: [ai, guide, infra]
 status: active
-updated: 2026-04-20
+updated: 2026-05-21
 ---
 # Guide — Infrastructure
 
@@ -28,12 +28,18 @@ updated: 2026-04-20
 
 The RTX 3090 (24GB VRAM) enables on-premise inference for sensitive data that cannot go to external APIs.
 
-| Model class | VRAM fit | Use case |
-|-------------|----------|----------|
-| 34B (Qwen 2.5 32B, Llama 3.3 34B) — Q4 quantized | Fits in VRAM (~20GB) | Primary local inference — HR data, board docs, financial projections |
-| 70B — Q4 quantized | Needs CPU offload (~40GB; VRAM + RAM) | Viable but slower — deep analysis on sensitive data |
+**Runtime:** Ollama 0.24.0 with CUDA backend — live on guide-server, accessible at `http://guide-server:11434`. Model storage on `/mnt/storage/ollama/models` (3.7 TB xfs disk).
 
-**Runtime:** Ollama with CUDA backend. Integrated into OpenClaw model routing as a new tier — see model routing table in `00_Guide-Project-Brief.md`.
+| Model | Size | Tools | Thinking | Use case |
+|-------|------|-------|----------|----------|
+| `tinyllama:latest` | 637 MB | no | no | Smoke-test / connectivity check |
+| `gemma3:27b-it-q4_K_M` | 17 GB | **no** | no | Summarisation only — do not use for agentic/tool-calling jobs |
+| `qwen3:14b` | ~9 GB | **yes** | **yes** | Lightweight agentic jobs, validation |
+| `qwen3:30b-a3b` | ~17 GB | **yes** | **yes** | Primary agentic model — MoE, fast, fits in 24 GB VRAM |
+
+> **Warning:** Gemma3 does not support tool calling. It was wired into a cron job in May 2026 and failed silently, falling back to Haiku every run. Always verify tool support before registering a model in OpenClaw — see `/srv/ollama/CLAUDE.md`.
+
+> **From inside Docker container:** reach host Ollama at `http://172.17.0.1:11434`, not `localhost`.
 
 ## Local Vault & Code Access
 
@@ -60,33 +66,58 @@ The Guide machine has full read access to everything the Engineer Claude needs:
 
 All machines connected via Tailscale. No public internet exposure.
 
-## Service Map (Target State)
+## Service Map (Current State — 2026-05-21)
 
 | Service | Port | Machine | Status |
 |---------|------|---------|--------|
-| OpenClaw gateway | 18789 | guide-server | **Live** — Docker + systemd (`openclaw.service`) |
-| OpenClaw Studio / TUI | — | guide-server | **Live** — Docker container |
+| OpenClaw gateway | 18789 (host loopback) | guide-server | **Live** — Docker + systemd (`openclaw.service`), `network_mode: host` |
+| Huginn automation | 3000 (internal) / 3001 (Tailscale) | guide-server | **Live** — Docker Compose + systemd (`huginn.service`) |
+| Ollama LLM inference | 11434 | guide-server | **Live** — systemd (`ollama.service`), GPU-backed |
+| Docker Engine | — | guide-server | **Live** |
+| Hermes agent platform | — | guide-server | Directory prepared (`/srv/hermes/`), not running |
+| Open WebUI | — | guide-server | Directory prepared (`/srv/openwebui/`), not running |
+| Paperclip orchestration | — | guide-server | **Installation in progress** (2026-05-21) |
+| PostgreSQL | — | guide-server | `/srv/db/postgres/` prepared, not running as standalone service |
+| Redis | — | guide-server | `/srv/db/redis/` prepared, not running as standalone service |
 | ETL API (Python) | 5010 | guide-server | Not started |
-| Docker Engine | — | guide-server | **Live** (Docker 29.5.0) |
 
 All services bind to 127.0.0.1 (loopback only). Remote access via Tailscale.
 
-## Filesystem Architecture (CHUNK-12+)
+## Filesystem Architecture
 
-Production directory structure for Guide. See [[personal-instance-architecture]] for full specification and `Specs/guide-bootstrap.sh` for the one-shot creation script.
+Production directory structure for Guide on guide-server. All paths are under `/srv/`.
 
-| Directory | Purpose | Write access |
-|-----------|---------|-------------|
-| `/srv/guide-vaults/private/` | Retained — do not remove until confirmed safe | guide-data group |
-| `/srv/guide-vaults/personal/` | Per-person agent workspaces (nick/, hadley/) | guide-data group |
-| `/srv/guide-vaults/shared/` | Cross-agent shared data | guide-data group |
-| `/srv/guide-vaults/teams/` | Team vaults — SMB share `guide-teams` | guide-data group; `digital/` live via Obsidian Sync (2026-05-19) |
-| `/srv/guide-outputs/` | Agent outputs — append-only | SMB share `guide-outputs` |
-| `/srv/guide-data/` | Pipeline data — restricted | SMB share `guide-data`, gareth only |
-| `/srv/openclaw/workspaces/` | OpenClaw workspaces (main + all agents) | guide-data group |
-| `/srv/openclaw/openclaw.json` | Live OpenClaw config | guide:guide-data 640 |
+| Directory | Purpose | Status |
+|-----------|---------|--------|
+| `/srv/openclaw/` | OpenClaw state root — config, workspaces, skills, credentials | **Live** |
+| `/srv/openclaw/workspaces/` | All agent workspaces (main + 12 agents) | **Live** |
+| `/srv/openclaw/skills/` | Skills directory — 19 skills on disk | **Live** |
+| `/srv/openclaw/openclaw.json` | Live OpenClaw config (guide:guide-data 640) | **Live** |
+| `/srv/guide-core/` | OpenClaw workspace templates, scripts, agent factory | **Live** |
+| `/srv/guide-engine/` | ETL scripts and exporters | **Live** |
+| `/srv/guide-build/` | Specs, chunks, CLAUDE.md files (this vault) | **Live** (read-only mount in container) |
+| `/srv/guide-vaults/personal/` | Per-person agent vaults (nick, keith, hadley, caro, dean, julian) | **Live** |
+| `/srv/guide-vaults/shared/` | Cross-agent shared data — brand, camps, countries, KB, sales | **Live — populated** |
+| `/srv/guide-vaults/teams/digital/` | Digital team vault — live via Obsidian Sync | **Live** (2026-05-19) |
+| `/srv/guide-vaults/teams/exco/` | Exco team vault | **Live — has content** |
+| `/srv/guide-vaults/teams/hr/` | HR team vault | Directory only — empty |
+| `/srv/guide-vaults/teams/reservations/` | Reservations team vault | Directory only — empty |
+| `/srv/guide-vaults/teams/sales/` | Sales team vault | Directory only — empty |
+| `/srv/guide-outputs/` | Agent outputs — append-only | **Live** |
+| `/srv/guide-data/` | Pipeline data — restricted to gareth | **Live** (empty pending pipelines) |
+| `/srv/guide-staging/` | Skills/scripts staging scratchpad | **Live** |
+| `/srv/huginn/` | Huginn config, docker-compose.yml, data | **Live** |
+| `/srv/ollama/` | Ollama docs; models on `/mnt/storage/ollama/models` | **Live** |
+| `/srv/hermes/` | Hermes data + profiles | Prepared — not running |
+| `/srv/openwebui/` | Open WebUI data | Prepared — not running |
+| `/srv/paperclip/` | Paperclip data | Installing (2026-05-21) |
+| `/srv/db/` | Database volumes (postgres, redis) | Prepared — not running as standalone |
+| `/srv/compose/` | Docker Compose files (openclaw.yml, Dockerfiles) | **Live** |
+| `/srv/backup/` | Backup dumps (openclaw-backup.sh output) | **Live** |
+| `/srv/landing-pages/` | Landing pages | Exists — purpose TBD |
+| `/srv/onedrive/` | OneDrive mount point | Empty — pending OneDrive setup |
 
-**Status:** All directories live — CHUNK-07c complete 2026-05-19.
+**Status:** All core directories live — CHUNK-07c complete 2026-05-19.
 
 ## Access Model
 
@@ -177,4 +208,4 @@ Applied 2026-05-01:
 
 **Action item:** When the Engineer next has a session, run `openclaw config schema` and check whether `channels.slack.streaming.preview.toolProgress` exists. If it does, apply the same `false` setting. Slack socket mode may handle streaming differently — it's less likely to leak progress messages since Slack doesn't do live streaming the same way Telegram does, but verify.
 
-*Updated: 2026-05-19 — CHUNK-07c complete, all services live on Z8*
+*Updated: 2026-05-21 — service map, filesystem, and LLM docs updated to reflect live state*
