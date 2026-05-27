@@ -12,7 +12,7 @@ status: stub
 
 **Agent ID:** `personal-julian`
 **Tier:** Exec (YZ — not group ExCo)
-**Comms:** Telegram (`@TODO_GuideJulianBotUsername`)
+**Comms:** Telegram (`@YellowZebraBot`)
 **Model:** Sonnet (operational key)
 **Review Mode:** Auto
 
@@ -23,7 +23,7 @@ status: stub
 **Name:** Julian Carter-Manning
 **Role:** Sales Director, Yellow Zebra
 **Reports to:** TODO — confirm reporting line
-**Telegram Chat ID:** TODO — collect on first message
+**Telegram Chat ID:** 8816742903
 **Cadence:** Ad hoc initially
 
 ---
@@ -115,8 +115,8 @@ Julian is a sales director. He lives in pipeline data and trade relationships. H
 - [x] templateReady
 - [x] workspaceGenerated
 - [x] registeredInOpenClaw
-- [ ] telegramBotCreated — token file exists, bot username TBC
-- [ ] telegramChatIdCollected
+- [x] telegramBotCreated — `@YellowZebraBot`
+- [x] telegramChatIdCollected — 8816742903
 - [ ] garethTested
 - [ ] personOnboarded
 - [ ] soulTuned
@@ -131,4 +131,4 @@ Julian is a sales director. He lives in pipeline data and trade relationships. H
 ---
 
 *Created: 2026-05-27*
-*Status: Stub — Telegram bot pending, soul tuning required after first conversations.*
+*Status: Stub — Bot live (@YellowZebraBot). Awaiting gateway restart, then Gareth test. Soul tuning required after first conversations.*
